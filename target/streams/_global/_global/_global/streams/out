@@ -1,0 +1,7 @@
+[debug] scalafmt: Adding repositories [https://repo1.maven.org/maven2/]
+[debug] scalafmt: Adding credentials []
+[debug] scalafmt: parsed config (v3.9.6): C:\Users\giann\Keyla-TTT\Keyla-API\.scalafmt.conf
+[debug] scalafmt: considering all files (no git)
+[info] scalafmt: Formatting 2 Scala sources (C:\Users\giann\Keyla-TTT\Keyla-API)...
+[debug] scalafmt: Unchanged 1 Scala sources
+[info] scalafmt: Reformatted 1 Scala sources

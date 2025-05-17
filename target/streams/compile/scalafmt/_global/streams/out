@@ -1,0 +1,13 @@
+[0m[[0m[0mdebug[0m] [0m[0mscalafmt: Adding repositories [https://repo1.maven.org/maven2/][0m
+[0m[[0m[0mdebug[0m] [0m[0mscalafmt: Adding credentials [][0m
+[0m[[0m[0mdebug[0m] [0m[0mscalafmt: parsed config (v3.9.6): C:\Users\giann\Keyla-TTT\Keyla-API\.scalafmt.conf[0m
+[0m[[0m[0mdebug[0m] [0m[0mscalafmt: considering all files (no git)[0m
+[0m[[0m[0mdebug[0m] [0m[0mscalafmt: Change report:[0m
+[0m[[0m[0mdebug[0m] [0m[0m	Checked: C:\Users\giann\Keyla-TTT\Keyla-API\src\main\scala\TestingPlugins.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	Modified: C:\Users\giann\Keyla-TTT\Keyla-API\src\main\scala\TestingPlugins.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	Unmodified: [0m
+[0m[[0m[0mdebug[0m] [0m[0m	Added: C:\Users\giann\Keyla-TTT\Keyla-API\src\main\scala\TestingPlugins.scala[0m
+[0m[[0m[0mdebug[0m] [0m[0m	Removed: [0m
+[0m[[0m[0minfo[0m] [0m[0mscalafmt: Formatting 1 Scala sources (C:\Users\giann\Keyla-TTT\Keyla-API)...[0m
+[0m[[0m[0mdebug[0m] [0m[0mscalafmt: Unchanged 0 Scala sources[0m
+[0m[[0m[0minfo[0m] [0m[0mscalafmt: Reformatted 1 Scala sources[0m

@@ -1,0 +1,3 @@
+[0m[[0m[0minfo[0m] [0m[0mRunning scalafix on 1 Scala sources[0m
+[0m[[0m[0mdebug[0m] [0m[0mrunning List(PrintStream(...), ToolClasspath(...), PrintStream(...), Config(...), Rules(...), ScalaVersion(...), ScalacOptions(List()), ParsedArgs(...), Paths(...))[0m
+[0m[[0m[31merror[0m] [0m[0mNo rules requested to run[0m

@@ -9,7 +9,6 @@ hs_err_pid*
 *.iml
 *.ipr
 .idea
-project/**
 target/**
-**/project/**
+project/project/**
 **/target/**

@@ -1,5 +1,0 @@
-[debug] Created transactional ClassFileManager with tempDir = /home/marco/OneDrive_Università/SPE/progetto/api/target/scala-3.7.0/scalafix-classes.bak
-[debug] About to delete class files:
-[debug] We backup class files:
-[debug] Created transactional ClassFileManager with tempDir = /home/marco/OneDrive_Università/SPE/progetto/api/target/scala-3.7.0/scalafix-classes.bak
-[debug] Removing the temporary directory used for backing up class files: /home/marco/OneDrive_Università/SPE/progetto/api/target/scala-3.7.0/scalafix-classes.bak

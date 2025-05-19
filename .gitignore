@@ -8,3 +8,8 @@ hs_err_pid*
 *.iws
 *.iml
 *.ipr
+.idea
+project/**
+target/**
+**/project/**
+**/target/**

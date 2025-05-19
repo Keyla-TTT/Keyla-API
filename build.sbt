@@ -3,6 +3,7 @@
 ThisBuild / organization := "Keyla-TTT"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.0"
+ThisBuild / conventionalCommits / successMessage := Some("\\e[32mCongratulations!\\e[0m")
 
 scalacOptions ++= Seq(
   "-Wunused:all",

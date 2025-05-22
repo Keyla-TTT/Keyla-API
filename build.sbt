@@ -23,6 +23,11 @@ lazy val startupTransition: State => State = "conventionalCommits" :: _
 lazy val root = (project in file("."))
   .settings(
     name := "API-Scala",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % Test,
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.2.18" % Test,
+      // MongoDB driver
+      "org.mongodb" % "mongodb-driver-sync" % "4.11.0", // Driver Java sincrono
+      "org.mongodb" % "bson" % "4.11.0", // Driver Java sincrono
+    ),
     Global / onLoad ~= (_ andThen ("conventionalCommits" :: _))
   )

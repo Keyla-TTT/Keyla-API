@@ -26,8 +26,8 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.18" % Test,
       // MongoDB driver
-      "org.mongodb" % "mongodb-driver-sync" % "4.11.0", // Driver Java sincrono
-      "org.mongodb" % "bson" % "4.11.0", // Driver Java sincrono
+      "org.mongodb" % "mongodb-driver-sync" % "5.5.0", // Driver Java sincrono
+      "org.mongodb" % "bson" % "5.5.0", // Driver Java sincrono
     ),
     Global / onLoad ~= (_ andThen ("conventionalCommits" :: _))
   )

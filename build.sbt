@@ -25,9 +25,11 @@ lazy val root = (project in file("."))
     name := "API-Scala",
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.18" % Test,
+      "org.mockito" % "mockito-core" % "3.+" % Test,
       // MongoDB driver
       "org.mongodb" % "mongodb-driver-sync" % "5.5.0", // Driver Java sincrono
       "org.mongodb" % "bson" % "5.5.0", // Driver Java sincrono
+      "com.typesafe" % "config" % "1.4.3"
     ),
     Global / onLoad ~= (_ andThen ("conventionalCommits" :: _))
   )

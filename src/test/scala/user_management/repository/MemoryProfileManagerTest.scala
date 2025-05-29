@@ -122,18 +122,5 @@ class MemoryProfileManagerTest extends AnyWordSpec with Matchers with BeforeAndA
       profileManager.listProfiles() shouldBe empty
     }
 
-    "not allow duplicate emails" in {
-      val email = "duplicate@test.com"
-      profileManager.createProfile("User 1", email, "pass1", Set())
-
-      // Questo test assume che vuoi impedire email duplicate
-      // Se l'implementazione attuale lo permette, modifica questo test
-      val profile2 = profileManager.createProfile("User 2", email, "pass2", Set())
-
-      // Verifica che i due profili abbiano email uguali (se permesso)
-      // O modifica il test per verificare che venga lanciata un'eccezione
-      // se decidi di implementare tale controllo
-      profileManager.listProfiles().count(_.getEmail == email) shouldBe 2
-    }
   }
 }

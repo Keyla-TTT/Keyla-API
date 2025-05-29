@@ -24,16 +24,16 @@ class MemoryProfileManagerTest extends AnyWordSpec with Matchers with BeforeAndA
     "create a new profile with unique ID" in {
       val profile = profileManager.createProfile(testProfileName, testProfileEmail, testProfilePassword, testProfileSettings)
 
-      profile.getId should not be null
-      profile.getName shouldBe testProfileName
-      profile.getEmail shouldBe testProfileEmail
-      profile.getPassword shouldBe testProfilePassword
-      profile.getSettings shouldBe testProfileSettings
+      profile.id should not be null
+      profile.name shouldBe testProfileName
+      profile.email shouldBe testProfileEmail
+      profile.password shouldBe testProfilePassword
+      profile.settings shouldBe testProfileSettings
     }
 
     "retrieve a created profile by ID" in {
       val createdProfile = profileManager.createProfile(testProfileName, testProfileEmail, testProfilePassword, testProfileSettings)
-      val retrievedProfile = profileManager.getProfile(createdProfile.getId)
+      val retrievedProfile = profileManager.getProfile(createdProfile.id)
 
       retrievedProfile shouldBe Some(createdProfile)
     }
@@ -49,7 +49,7 @@ class MemoryProfileManagerTest extends AnyWordSpec with Matchers with BeforeAndA
       val newSettings = Set("theme:light", "lang:it")
 
       val updatedProfile = profileManager.updateProfile(
-        createdProfile.getId,
+        createdProfile.id,
         Some(newName),
         None,
         None,
@@ -57,10 +57,10 @@ class MemoryProfileManagerTest extends AnyWordSpec with Matchers with BeforeAndA
       )
 
       updatedProfile shouldBe defined
-      updatedProfile.get.getName shouldBe newName
-      updatedProfile.get.getEmail shouldBe testProfileEmail // unchanged
-      updatedProfile.get.getPassword shouldBe testProfilePassword // unchanged
-      updatedProfile.get.getSettings shouldBe newSettings
+      updatedProfile.get.name shouldBe newName
+      updatedProfile.get.email shouldBe testProfileEmail // unchanged
+      updatedProfile.get.password shouldBe testProfilePassword // unchanged
+      updatedProfile.get.settings shouldBe newSettings
     }
 
     "partially update a profile" in {
@@ -68,7 +68,7 @@ class MemoryProfileManagerTest extends AnyWordSpec with Matchers with BeforeAndA
       val newEmail = "updated@example.com"
 
       val updatedProfile = profileManager.updateProfile(
-        createdProfile.getId,
+        createdProfile.id,
         None,
         Some(newEmail),
         None,
@@ -76,10 +76,10 @@ class MemoryProfileManagerTest extends AnyWordSpec with Matchers with BeforeAndA
       )
 
       updatedProfile shouldBe defined
-      updatedProfile.get.getName shouldBe testProfileName // unchanged
-      updatedProfile.get.getEmail shouldBe newEmail
-      updatedProfile.get.getPassword shouldBe testProfilePassword // unchanged
-      updatedProfile.get.getSettings shouldBe testProfileSettings // unchanged
+      updatedProfile.get.name shouldBe testProfileName // unchanged
+      updatedProfile.get.email shouldBe newEmail
+      updatedProfile.get.password shouldBe testProfilePassword // unchanged
+      updatedProfile.get.settings shouldBe testProfileSettings // unchanged
     }
 
     "return None when updating a non-existent profile" in {
@@ -97,10 +97,10 @@ class MemoryProfileManagerTest extends AnyWordSpec with Matchers with BeforeAndA
 
     "delete an existing profile" in {
       val createdProfile = profileManager.createProfile(testProfileName, testProfileEmail, testProfilePassword, testProfileSettings)
-      val deleteResult = profileManager.deleteProfile(createdProfile.getId)
+      val deleteResult = profileManager.deleteProfile(createdProfile.id)
 
       deleteResult shouldBe true
-      profileManager.getProfile(createdProfile.getId) shouldBe None
+      profileManager.getProfile(createdProfile.id) shouldBe None
     }
 
     "return false when deleting a non-existent profile" in {

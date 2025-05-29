@@ -30,7 +30,7 @@ case class MemoryProfileManager() extends ProfileManager:
    */
   def createProfile(name: String, email: String, password: String, settings: Set[String]): Profile =
     val profile = UserProfile(UUID.randomUUID(), name, email, password, settings)
-    profiles += (profile.getId -> profile)
+    profiles += (profile.id -> profile)
     profile
 
   /**
@@ -45,12 +45,12 @@ case class MemoryProfileManager() extends ProfileManager:
   def updateProfile(id: UUID, name: Option[String], email: Option[String], password: Option[String], settings: Option[Set[String]]): Option[Profile] =
     profiles.get(id).map : profile =>
       val updatedProfile = profile.copy(
-        name = name.getOrElse(profile.getName),
-        email = email.getOrElse(profile.getEmail),
-        password = password.getOrElse(profile.getPassword),
-        settings = settings.getOrElse(profile.getSettings)
+        name = name.getOrElse(profile.name),
+        email = email.getOrElse(profile.email),
+        password = password.getOrElse(profile.password),
+        settings = settings.getOrElse(profile.settings)
       )
-      profiles += (updatedProfile.getId -> updatedProfile)
+      profiles += (updatedProfile.id -> updatedProfile)
       updatedProfile
 
   /**

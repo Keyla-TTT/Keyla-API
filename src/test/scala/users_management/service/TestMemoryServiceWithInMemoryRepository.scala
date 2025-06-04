@@ -8,12 +8,12 @@ import users_management.repository.InMemoryProfileRepository
 
 class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers {
 
-  def createCleanTestEnvironment(): (MemoryProfileService, InMemoryProfileRepository, UserFactory) = 
+  def createCleanTestEnvironment(): (MemoryProfileService, InMemoryProfileRepository, UserFactory) =
     val repository = new InMemoryProfileRepository()
     val factory = new UserFactory()
     val service = MemoryProfileService(repository)
     (service, repository, factory)
-  
+
 
   "MemoryProfileService" should "create a new profile with generated id" in {
     val (service, _, factory) = createCleanTestEnvironment()
@@ -69,8 +69,22 @@ class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers 
   }
 
   it should "return false when deleting non-existing profile" in {
-    val (service, _, factory) = createCleanTestEnvironment()
+    val (service, _, _) = createCleanTestEnvironment()
     service.deleteProfile("non-existing") shouldBe false
+  }
+
+  it should "delete all profiles" in {
+    val (service, _, factory) = createCleanTestEnvironment()
+    val profile1 = factory.createUserProfile("Mario", "mario@test.com", "password", Set("user"))
+    val profile2 = factory.createUserProfile("Luigi", "luigi@test.com", "password", Set("admin"))
+    service.createProfile(profile1)
+    service.createProfile(profile2)
+    service.deleteAllProfiles() shouldBe true
+  }
+
+  it should "return false when deleting all profiles if none exist" in {
+    val (service, _, _) = createCleanTestEnvironment()
+    service.deleteAllProfiles() shouldBe false
   }
 
   it should "list all profiles" in {

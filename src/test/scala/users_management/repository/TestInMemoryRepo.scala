@@ -2,48 +2,71 @@ package users_management.repository
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-import users_management.repository.InMemoryProfileRepository
-
+import org.scalatest.BeforeAndAfter
 import users_management.model.UserProfile
 
-class TestInMemoryRepo extends AnyFunSuite, Matchers:
+class TestInMemoryRepo extends AnyFunSuite with Matchers with BeforeAndAfter:
 
-  val repo = InMemoryProfileRepository()
-  val profile1 = UserProfile(Some("1"), "Mario", "mario@email.com", "pass", Set("a"))
-  val profile2 = UserProfile(Some("2"), "Luigi", "luigi@email.com", "pass2", Set("b"))
+  private var repo: InMemoryProfileRepository = _
+  private val testProfile = UserProfile(None, "Mario", "mario@email.com", "pass", Set("a"))
 
-  test("create aggiunge un nuovo profilo e lo restituisce") {
-    repo.create(profile1) shouldBe profile1
-    repo.get("1") shouldBe Some(profile1)
+  before {
+    repo = new InMemoryProfileRepository()
   }
 
-  test("get restituisce None se l'id non esiste") {
-    repo.get("not-exist") shouldBe None
+  test("create generates a new ID and returns the created profile") {
+    val created = repo.create(testProfile)
+    created.id shouldBe defined
+    created.name shouldBe testProfile.name
+    created.email shouldBe testProfile.email
+    repo.get(created.id.get) shouldBe Some(created)
   }
 
-  test("update aggiorna un profilo esistente e restituisce il profilo aggiornato") {
-    repo.create(profile1)
-    val updated = profile1.copy(name = "Mario Updated")
+  test("get returns a profile by ID") {
+    repo.get("non-esistente") shouldBe None
+  }
+
+  test("update modifies an existing profile") {
+    val created = repo.create(testProfile)
+    val updated = created.copy(name = "Mario Updated")
     repo.update(updated) shouldBe Some(updated)
-    repo.get("1") shouldBe Some(updated)
+    repo.get(created.id.get).get.name shouldBe "Mario Updated"
   }
 
-  test("update restituisce None se il profilo non esiste") {
-    repo.update(profile2) shouldBe None
+  test("update returns None if the profile does not exist") {
+    val nonExisting = UserProfile(Some("non-esistente"), "Mario", "mario@email.com", "pass", Set("a"))
+    repo.update(nonExisting) shouldBe None
   }
 
-  test("delete rimuove un profilo esistente e restituisce true") {
-    repo.create(profile2)
-    repo.delete("2") shouldBe true
-    repo.get("2") shouldBe None
+  test("delete removes an existing profile") {
+    val created = repo.create(testProfile)
+    repo.delete(created.id.get) shouldBe true
+    repo.get(created.id.get) shouldBe None
   }
 
-  test("delete restituisce false se il profilo non esiste") {
-    repo.delete("not-exist") shouldBe false
+  test("delete returns false if the profile does not exist") {
+    repo.delete("non-esistente") shouldBe false
   }
 
-  test("list restituisce tutti i profili presenti") {
-    repo.create(profile1)
-    repo.create(profile2)
-    repo.list().toSet shouldBe Set(profile1, profile2)
+  test("deleteAll removes all profiles and returns true") {
+    val profile1 = repo.create(testProfile)
+    val profile2 = repo.create(testProfile.copy(email = "luigi@email.com"))
+    repo.deleteAll() shouldBe true
+    repo.list() shouldBe empty
+  }
+
+  test("deleteAll returns false if there are no profiles to delete") {
+    repo.deleteAll() shouldBe false
+  }
+
+  test("list returns all profiles") {
+    val profile1 = repo.create(testProfile)
+    val profile2 = repo.create(testProfile.copy(email = "luigi@email.com"))
+    val profiles = repo.list()
+    profiles should contain allOf(profile1, profile2)
+    profiles should have size 2
+  }
+
+  test("list returns empty when no profiles exist") {
+    repo.list() shouldBe empty
   }

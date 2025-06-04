@@ -2,7 +2,7 @@ package users_management.model
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-import users_management.model.{UserProfileBuilder, UserProfile}
+import users_management.model.UserProfileBuilder
 
 class TestBuilder extends AnyFunSuite, Matchers:
 

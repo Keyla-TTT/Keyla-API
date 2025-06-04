@@ -13,8 +13,16 @@ class InMemoryProfileRepository extends ProfileRepository:
     profiles.get(id)
   
   override def create(profile: Profile): Profile =
-    profiles += (profile.id.get -> profile)
-    profile
+    val id = generateUniqueId()
+    val profileWithId = profile.copy(id = Some(id))
+    profiles += (id -> profileWithId)
+    profileWithId
+
+  private def generateUniqueId(): String =
+    val id = java.util.UUID.randomUUID().toString
+    id match
+      case id if profiles.contains(id) => generateUniqueId() 
+      case _ => id
   
   override def update(profile: Profile): Option[Profile] =
     profile.id.flatMap: id =>

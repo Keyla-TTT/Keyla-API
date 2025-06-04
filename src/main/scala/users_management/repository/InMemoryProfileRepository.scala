@@ -18,6 +18,7 @@ class InMemoryProfileRepository extends ProfileRepository:
     profiles += (id -> profileWithId)
     profileWithId
 
+  @scala.annotation.tailrec
   private def generateUniqueId(): String =
     val id = java.util.UUID.randomUUID().toString
     id match

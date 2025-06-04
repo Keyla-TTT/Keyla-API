@@ -17,6 +17,9 @@ case class MemoryProfileService(private val profiles: ProfileRepository) extends
   
   def deleteProfile(id: String): Boolean =
     profiles.delete(id)
+    
+  def deleteAllProfiles(): Boolean =
+    profiles.deleteAll()
   
   def listProfiles(): List[Profile] =
     profiles.list()

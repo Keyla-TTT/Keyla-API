@@ -8,5 +8,6 @@ trait ProfileRepository:
   def create(profile: Profile): Profile
   def update(profile: Profile): Option[Profile]
   def delete(id: String): Boolean
+  def deleteAll(): Boolean
   def list(): List[Profile]
    

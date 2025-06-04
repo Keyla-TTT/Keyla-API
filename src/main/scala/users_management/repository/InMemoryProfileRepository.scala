@@ -34,6 +34,11 @@ class InMemoryProfileRepository extends ProfileRepository:
   
   override def delete(id: String): Boolean =
     profiles.remove(id).isDefined
+    
+  override def deleteAll(): Boolean =
+    val sizeBefore = profiles.size
+    profiles.clear()
+    sizeBefore > 0
   
   override def list(): List[Profile] =
     profiles.values.toList

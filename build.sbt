@@ -25,6 +25,7 @@ lazy val root = (project in file("."))
     name := "API-Scala",
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.18" % Test,
+      "org.testcontainers" % "mongodb" % "1.20.2" % Test,
 
       // MongoDB driver
       "org.mongodb" % "mongodb-driver-sync" % "5.5.0", // Driver Java sincrono

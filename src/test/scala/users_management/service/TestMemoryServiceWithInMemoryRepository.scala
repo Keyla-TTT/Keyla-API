@@ -8,10 +8,10 @@ import users_management.repository.InMemoryProfileRepository
 
 class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers {
 
-  def createCleanTestEnvironment(): (MemoryProfileService, InMemoryProfileRepository, UserFactory) =
+  def createCleanTestEnvironment(): (ProfileService, InMemoryProfileRepository, UserFactory) =
     val repository = new InMemoryProfileRepository()
     val factory = new UserFactory()
-    val service = MemoryProfileService(repository)
+    val service = ProfileServiceImpl(repository)
     (service, repository, factory)
 
 
@@ -102,7 +102,7 @@ class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers 
 
   it should "return empty list when no profiles exist" in {
     val emptyRepository = new InMemoryProfileRepository()
-    val service = MemoryProfileService(emptyRepository)
+    val service = ProfileServiceImpl(emptyRepository)
     service.listProfiles() shouldBe empty
   }
 }

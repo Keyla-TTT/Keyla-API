@@ -10,7 +10,7 @@ import users_management.repository.{DatabaseInfos, MongoProfileRepository}
 
 class TestMemoryServiceWithMongoRepository extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAll with Matchers:
   private val mongoContainer = new MongoDBContainer("mongo:6.0")
-  private var service: MemoryProfileService = _
+  private var service: ProfileService = _
   private var repository: MongoProfileRepository = _
   private val factory = new UserFactory()
 
@@ -24,7 +24,7 @@ class TestMemoryServiceWithMongoRepository extends AnyFunSuite with BeforeAndAft
     val mongoUri = s"mongodb://${mongoContainer.getHost}:${mongoContainer.getFirstMappedPort}"
     val dbInfos = DatabaseInfos("tests", mongoUri, "profiles")
     repository = new MongoProfileRepository(dbInfos)
-    service = MemoryProfileService(repository)
+    service = ProfileServiceImpl(repository)
     repository.deleteAll()
   }
 

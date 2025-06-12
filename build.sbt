@@ -3,7 +3,6 @@
 ThisBuild / organization := "Keyla-TTT"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.0"
-ThisBuild / conventionalCommits / successMessage := Some("\\e[32mCongratulations!\\e[0m")
 
 scalacOptions ++= Seq(
   "-Wunused:all",
@@ -19,17 +18,18 @@ inThisBuild(List(
 ))
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-lazy val startupTransition: State => State = "conventionalCommits" :: _
+
 lazy val root = (project in file("."))
   .settings(
     name := "API-Scala",
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.18" % Test,
-      "org.testcontainers" % "mongodb" % "1.20.2" % Test,
+      "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+      "org.testcontainers" % "mongodb" % "1.21.1" % Test,
 
       // MongoDB driver
-      "org.mongodb" % "mongodb-driver-sync" % "5.5.0", // Driver Java sincrono
+      "org.mongodb" % "mongodb-driver-sync" % "5.5.1", // Driver Java sincrono
       "org.mongodb" % "bson" % "5.5.0"// Driver Java sincrono
     ),
-    Global / onLoad ~= (_ andThen ("conventionalCommits" :: _))
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+    libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "3.0.0",
   )

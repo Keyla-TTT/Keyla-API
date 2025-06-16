@@ -30,5 +30,13 @@ jobs:
           key: ${{ runner.os }}-sbt-${{ hashFiles('**/*.sbt') }}
           restore-keys: |
             ${{ runner.os }}-sbt-
+
+      - name: Install sbt
+        run: |
+          curl -L -o sbt.deb https://github.com/sbt/sbt/releases/download/v1.9.8/sbt-1.9.8.deb
+          sudo dpkg -i sbt.deb
+          sudo apt-get update
+          sudo apt-get install sbt
+
       - name: Run tests
         run: sbt test

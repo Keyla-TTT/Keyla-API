@@ -34,9 +34,13 @@ jobs:
       - name: Install sbt
         run: |
           curl -L -o sbt.deb https://github.com/sbt/sbt/releases/download/v1.9.8/sbt-1.9.8.deb
-          sudo dpkg -i sbt.deb
+          if ! dpkg-deb --info sbt.deb; then
+            echo "Downloaded sbt.deb is invalid or corrupted."
+            exit 1
+          fi
+          sudo dpkg -i sbt.deb || true
           sudo apt-get update
-          sudo apt-get install sbt
+          sudo apt-get install -f -y
 
       - name: Run tests
         run: sbt test

@@ -4,7 +4,7 @@ ThisBuild / organization := "Keyla-TTT"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.0"
 
-Test / testOptions += Tests.Filter(name => !name.contains("Docker"))
+// Test / testOptions += Tests.Filter(name => !name.contains("Docker"))
 
 scalacOptions ++= Seq(
   "-Wunused:all",

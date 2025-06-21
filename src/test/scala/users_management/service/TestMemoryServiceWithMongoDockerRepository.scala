@@ -8,7 +8,7 @@ import org.testcontainers.containers.MongoDBContainer
 import users_management.factory.UserFactory
 import users_management.repository.{DatabaseInfos, MongoProfileRepository}
 
-class TestMemoryServiceWithMongoRepository extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAll with Matchers:
+class TestMemoryServiceWithMongoDockerRepository extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAll with Matchers:
   private val mongoContainer = new MongoDBContainer("mongo:6.0")
   private var service: ProfileService = _
   private var repository: MongoProfileRepository = _

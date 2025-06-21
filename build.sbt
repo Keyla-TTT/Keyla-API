@@ -4,7 +4,7 @@ ThisBuild / organization := "Keyla-TTT"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.0"
 
-Test / testOptions += Tests.Filter(name => !name.contains("Mongo"))
+Test / testOptions += Tests.Filter(name => !name.contains("Docker"))
 
 scalacOptions ++= Seq(
   "-Wunused:all",
@@ -27,6 +27,7 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.19" % Test,
       "org.testcontainers" % "mongodb" % "1.21.1" % Test,
+      "de.flapdoodle.embed" % "de.flapdoodle.embed.mongo" % "3.5.3" % Test,
 
       // MongoDB driver
       "org.mongodb" % "mongodb-driver-sync" % "5.5.1", // Driver Java sincrono

@@ -1,38 +1,48 @@
 package users_management.repository
 
+import de.flapdoodle.embed.mongo.config.{ImmutableMongodConfig, MongodConfig, Net}
+import de.flapdoodle.embed.mongo.distribution.Version
+import de.flapdoodle.embed.mongo.{MongodExecutable, MongodProcess, MongodStarter}
+import de.flapdoodle.embed.process.runtime.Network
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
-import org.testcontainers.containers.MongoDBContainer
-import users_management.model.UserProfile
 import org.scalatest.matchers.should.Matchers
+import users_management.model.UserProfile
 
-class TestMongoRepo extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAll with Matchers:
-  private val mongoContainer = new MongoDBContainer("mongo:6.0")
-
+class TestMongoInMemoryRepo extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAll with Matchers:
+  private var mongod: MongodExecutable = _
   private var repository: MongoProfileRepository = _
   private val testProfile = UserProfile(None, "Test User", "test@example.com", "password123", Set("setting1", "setting2"))
+  private val port = 27017
 
   override def beforeAll(): Unit =
-    mongoContainer.start()
+    val mongodConfig = MongodConfig.builder()
+      .version(Version.V3_6_22)
+      .net(new Net(port, Network.localhostIsIPv6()))
+      .build()
 
-  override def afterAll(): Unit =
-    mongoContainer.stop()
+    mongod = MongodStarter.getDefaultInstance.prepare(mongodConfig)
+    mongod.start()
 
-  before:
+  override def afterAll(): Unit = {
+    // Ferma MongoDB embedded
+    if mongod != null then mongod.stop()
+  }
+
+  before {
     val dbInfos = DatabaseInfos(
       collectionName = "profiles",
-      mongoUri = s"mongodb://${mongoContainer.getHost}:${mongoContainer.getFirstMappedPort}",
-      databaseName = "profiles_db"
+      mongoUri = s"mongodb://localhost:$port",
+      databaseName = "test_db" // Nome arbitrario per i test
     )
     repository = new MongoProfileRepository(dbInfos)
-    repository.deleteAll()
-    
+    repository.deleteAll() // Pulisce il database prima di ogni test
+  }
 
-  after:
-    if repository != null then
-      repository.close()
-  
+  after {
+    if repository != null then repository.close()
+  }
 
 
   test("createdProfileHasGeneratedId") {

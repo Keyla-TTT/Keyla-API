@@ -16,7 +16,6 @@ class PreCommitTest extends AnyFunSuite:
     // Il codice seguente è malformattato e dovrebbe essere corretto da scalafmt
 
 
-
     def badlyFormattedMethod(a: Int, b: Int) =
       a + b
 

@@ -14,8 +14,6 @@ class PreCommitTest extends AnyFunSuite:
 
   test("verify code formatting") {
     // Il codice seguente è malformattato e dovrebbe essere corretto da scalafmt
-
-
     def badlyFormattedMethod(a: Int, b: Int) =
       a + b
 

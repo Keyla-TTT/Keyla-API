@@ -3,6 +3,7 @@ package users_management.model
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import users_management.model.UserProfileBuilder
+import org.scalatest.matchers.Matcher
 
 class TestBuilder extends AnyFunSuite, Matchers:
 
@@ -10,15 +11,21 @@ class TestBuilder extends AnyFunSuite, Matchers:
   val validName = "Mario Rossi"
   val validEmail = "mario.rossi@email.com"
   val validPassword = "password123"
-  val validSettings = Set("dark_mode", "notifications")
+  val validSettings: Set[String] = Set("dark_mode", "notifications")
 
-  def profileMatcher(id: Option[String], name: String, email: String, password: String, settings: Set[String]) =
-    have (
-      Symbol("id") (id),
-      Symbol("name") (name),
-      Symbol("email") (email),
-      Symbol("password") (password),
-      Symbol("settings") (settings)
+  def profileMatcher(
+      id: Option[String],
+      name: String,
+      email: String,
+      password: String,
+      settings: Set[String]
+  ): Matcher[Object] =
+    have(
+      Symbol("id")(id),
+      Symbol("name")(name),
+      Symbol("email")(email),
+      Symbol("password")(password),
+      Symbol("settings")(settings)
     )
 
   test("build crea UserProfile con tutti i campi valorizzati") {
@@ -29,7 +36,13 @@ class TestBuilder extends AnyFunSuite, Matchers:
       .withPassword(validPassword)
       .withSettings(validSettings)
       .build()
-    profile should profileMatcher(Some(validId), validName, validEmail, validPassword, validSettings)
+    profile should profileMatcher(
+      Some(validId),
+      validName,
+      validEmail,
+      validPassword,
+      validSettings
+    )
   }
 
   test("build crea UserProfile con valori di default se non impostati") {

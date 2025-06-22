@@ -8,7 +8,11 @@ import org.testcontainers.containers.MongoDBContainer
 import users_management.factory.UserFactory
 import users_management.repository.{DatabaseInfos, MongoProfileRepository}
 
-class TestMemoryServiceWithMongoDockerRepository extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAll with Matchers:
+class TestMemoryServiceWithMongoDockerRepository
+    extends AnyFunSuite
+    with BeforeAndAfter
+    with BeforeAndAfterAll
+    with Matchers:
   private val mongoContainer = new MongoDBContainer("mongo:6.0")
   private var service: ProfileService = _
   private var repository: MongoProfileRepository = _
@@ -21,7 +25,8 @@ class TestMemoryServiceWithMongoDockerRepository extends AnyFunSuite with Before
     mongoContainer.stop()
 
   before {
-    val mongoUri = s"mongodb://${mongoContainer.getHost}:${mongoContainer.getFirstMappedPort}"
+    val mongoUri =
+      s"mongodb://${mongoContainer.getHost}:${mongoContainer.getFirstMappedPort}"
     val dbInfos = DatabaseInfos("tests", mongoUri, "profiles")
     repository = new MongoProfileRepository(dbInfos)
     service = ProfileServiceImpl(repository)
@@ -35,14 +40,24 @@ class TestMemoryServiceWithMongoDockerRepository extends AnyFunSuite with Before
   }
 
   test("createProfileShouldGenerateId") {
-    val profile = factory.createUserProfile("Mario", "mario@test.com", "password", Set("user"))
+    val profile = factory.createUserProfile(
+      "Mario",
+      "mario@test.com",
+      "password",
+      Set("user")
+    )
     val created = service.createProfile(profile)
     created.id shouldBe defined
     created.name shouldBe "Mario"
   }
 
   test("getProfileShouldReturnExistingProfile") {
-    val profile = factory.createUserProfile("Luigi", "luigi@test.com", "password", Set("admin"))
+    val profile = factory.createUserProfile(
+      "Luigi",
+      "luigi@test.com",
+      "password",
+      Set("admin")
+    )
     val created = service.createProfile(profile)
     service.getProfile(created.id.get) shouldBe Some(created)
   }
@@ -52,21 +67,42 @@ class TestMemoryServiceWithMongoDockerRepository extends AnyFunSuite with Before
   }
 
   test("updateExistingProfileShouldSucceed") {
-    val profile = factory.createUserProfile("Mario", "mario@test.com", "password", Set("user"))
+    val profile = factory.createUserProfile(
+      "Mario",
+      "mario@test.com",
+      "password",
+      Set("user")
+    )
     val created = service.createProfile(profile)
-    val updated = factory.createUserProfile("Super Mario", created.email, created.password, Set("admin"))
+    val updated = factory
+      .createUserProfile(
+        "Super Mario",
+        created.email,
+        created.password,
+        Set("admin")
+      )
       .copy(id = created.id)
     service.updateProfile(updated) shouldBe Some(updated)
   }
 
   test("updateNonExistingProfileShouldReturnNone") {
-    val profile = factory.createUserProfile("Mario", "mario@test.com", "password", Set("user"))
+    val profile = factory.createUserProfile(
+      "Mario",
+      "mario@test.com",
+      "password",
+      Set("user")
+    )
     val nonExisting = profile.copy(id = Some("507f1f77bcf86cd799439011"))
     service.updateProfile(nonExisting) shouldBe None
   }
 
   test("deleteExistingProfileShouldReturnTrue") {
-    val profile = factory.createUserProfile("Mario", "mario@test.com", "password", Set("user"))
+    val profile = factory.createUserProfile(
+      "Mario",
+      "mario@test.com",
+      "password",
+      Set("user")
+    )
     val created = service.createProfile(profile)
     service.deleteProfile(created.id.get) shouldBe true
     service.getProfile(created.id.get) shouldBe None
@@ -77,12 +113,22 @@ class TestMemoryServiceWithMongoDockerRepository extends AnyFunSuite with Before
   }
 
   test("listProfilesShouldReturnAllProfiles") {
-    val profile1 = factory.createUserProfile("Mario", "mario@test.com", "password", Set("user"))
-    val profile2 = factory.createUserProfile("Luigi", "luigi@test.com", "password", Set("admin"))
+    val profile1 = factory.createUserProfile(
+      "Mario",
+      "mario@test.com",
+      "password",
+      Set("user")
+    )
+    val profile2 = factory.createUserProfile(
+      "Luigi",
+      "luigi@test.com",
+      "password",
+      Set("admin")
+    )
     val created1 = service.createProfile(profile1)
     val created2 = service.createProfile(profile2)
     val profiles = service.listProfiles()
-    profiles should contain allOf(created1, created2)
+    profiles should contain allOf (created1, created2)
     profiles should have size 2
   }
 
@@ -91,7 +137,12 @@ class TestMemoryServiceWithMongoDockerRepository extends AnyFunSuite with Before
   }
 
   test("deleteAllProfilesShouldReturnTrueWhenProfilesExist") {
-    val profile = factory.createUserProfile("Mario", "mario@test.com", "password", Set("user"))
+    val profile = factory.createUserProfile(
+      "Mario",
+      "mario@test.com",
+      "password",
+      Set("user")
+    )
     service.createProfile(profile)
     service.deleteAllProfiles() shouldBe true
     service.listProfiles() shouldBe empty

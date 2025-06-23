@@ -7,11 +7,21 @@ import org.testcontainers.containers.MongoDBContainer
 import users_management.model.UserProfile
 import org.scalatest.matchers.should.Matchers
 
-class TestMongoRepo extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAll with Matchers:
+class TestMongoDockerRepo
+    extends AnyFunSuite
+    with BeforeAndAfter
+    with BeforeAndAfterAll
+    with Matchers:
   private val mongoContainer = new MongoDBContainer("mongo:6.0")
 
   private var repository: MongoProfileRepository = _
-  private val testProfile = UserProfile(None, "Test User", "test@example.com", "password123", Set("setting1", "setting2"))
+  private val testProfile = UserProfile(
+    None,
+    "Test User",
+    "test@example.com",
+    "password123",
+    Set("setting1", "setting2")
+  )
 
   override def beforeAll(): Unit =
     mongoContainer.start()
@@ -22,18 +32,15 @@ class TestMongoRepo extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterA
   before:
     val dbInfos = DatabaseInfos(
       collectionName = "profiles",
-      mongoUri = s"mongodb://${mongoContainer.getHost}:${mongoContainer.getFirstMappedPort}",
+      mongoUri =
+        s"mongodb://${mongoContainer.getHost}:${mongoContainer.getFirstMappedPort}",
       databaseName = "profiles_db"
     )
     repository = new MongoProfileRepository(dbInfos)
     repository.deleteAll()
-    
 
   after:
-    if repository != null then
-      repository.close()
-  
-
+    if repository != null then repository.close()
 
   test("createdProfileHasGeneratedId") {
     val created = repository.create(testProfile)
@@ -62,7 +69,8 @@ class TestMongoRepo extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterA
   }
 
   test("updateNonExistingProfileReturnsNone") {
-    val nonExistingProfile = testProfile.copy(id = Some("507f1f77bcf86cd799439011"))
+    val nonExistingProfile =
+      testProfile.copy(id = Some("507f1f77bcf86cd799439011"))
     val result = repository.update(nonExistingProfile)
     assert(result.isEmpty)
   }
@@ -79,7 +87,8 @@ class TestMongoRepo extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterA
 
   test("listReturnsAllProfiles") {
     val profile1 = repository.create(testProfile)
-    val profile2 = repository.create(testProfile.copy(email = "test2@example.com"))
+    val profile2 =
+      repository.create(testProfile.copy(email = "test2@example.com"))
     val profiles = repository.list()
     assert(profiles.size == 2)
     assert(profiles.contains(profile1))

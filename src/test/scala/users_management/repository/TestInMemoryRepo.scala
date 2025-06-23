@@ -8,7 +8,8 @@ import users_management.model.UserProfile
 class TestInMemoryRepo extends AnyFunSuite with Matchers with BeforeAndAfter:
 
   private var repo: InMemoryProfileRepository = _
-  private val testProfile = UserProfile(None, "Mario", "mario@email.com", "pass", Set("a"))
+  private val testProfile =
+    UserProfile(None, "Mario", "mario@email.com", "pass", Set("a"))
 
   before {
     repo = new InMemoryProfileRepository()
@@ -34,7 +35,13 @@ class TestInMemoryRepo extends AnyFunSuite with Matchers with BeforeAndAfter:
   }
 
   test("update returns None if the profile does not exist") {
-    val nonExisting = UserProfile(Some("non-esistente"), "Mario", "mario@email.com", "pass", Set("a"))
+    val nonExisting = UserProfile(
+      Some("non-esistente"),
+      "Mario",
+      "mario@email.com",
+      "pass",
+      Set("a")
+    )
     repo.update(nonExisting) shouldBe None
   }
 
@@ -63,7 +70,7 @@ class TestInMemoryRepo extends AnyFunSuite with Matchers with BeforeAndAfter:
     val profile1 = repo.create(testProfile)
     val profile2 = repo.create(testProfile.copy(email = "luigi@email.com"))
     val profiles = repo.list()
-    profiles should contain allOf(profile1, profile2)
+    profiles should contain allOf (profile1, profile2)
     profiles should have size 2
   }
 

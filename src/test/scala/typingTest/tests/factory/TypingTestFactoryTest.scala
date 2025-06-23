@@ -25,9 +25,9 @@ class MockDictionaryLoader extends DictionaryLoader:
 
 class TypingTestFactoryTest extends AnyFlatSpec with Matchers:
   val mockLoader = new MockDictionaryLoader()
-  val dict1 = Dictionary("dict1", "test", "/path/to/dict1.txt")
-  val dict2 = Dictionary("dict2", "test", "/path/to/dict2.txt")
-  val emptyDict = Dictionary("empty", "test", "/path/to/empty.txt")
+  val dict1: Dictionary = Dictionary("dict1", "test", "/path/to/dict1.txt")
+  val dict2: Dictionary = Dictionary("dict2", "test", "/path/to/dict2.txt")
+  val emptyDict: Dictionary = Dictionary("empty", "test", "/path/to/empty.txt")
 
   "TypingTestFactory" should "create a test with a single source" in {
     val test = TypingTestFactory

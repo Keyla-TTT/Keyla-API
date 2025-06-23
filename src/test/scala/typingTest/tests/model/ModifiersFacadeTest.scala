@@ -4,8 +4,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class ModifiersFacadeTest extends AnyFlatSpec with Matchers:
-  val testWords = Seq("Hello world", "test", "  spaces  ", "Mixed case")
-  val nonStringInputs = Seq(123, true, 3.14, null)
+  val testWords: Seq[String] =
+    Seq("Hello world", "test", "  spaces  ", "Mixed case")
+  val nonStringInputs: Seq[Int | Boolean | (Double | Null)] =
+    Seq(123, true, 3.14, null)
 
   "ModifiersFacade" should "apply uppercase transformation" in {
     val result = ModifiersFacade.uppercase(testWords)

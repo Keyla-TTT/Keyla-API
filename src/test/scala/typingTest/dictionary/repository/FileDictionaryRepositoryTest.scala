@@ -14,7 +14,7 @@ class FileDictionaryRepositoryTest
     with Matchers
     with BeforeAndAfterEach:
   // Test with a temporary directory
-  val tempDir = Files.createTempDirectory("dict-test").toFile
+  val tempDir: File = Files.createTempDirectory("dict-test").toFile
   val italianDir = new File(tempDir, "italian")
   val englishDir = new File(tempDir, "english")
 

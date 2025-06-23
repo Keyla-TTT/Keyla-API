@@ -5,8 +5,8 @@ import org.scalatest.matchers.should.Matchers
 import typingTest.tests.model.TestMerger
 
 class TestMergerTest extends AnyFlatSpec with Matchers:
-  val seq1 = List("one", "two", "three")
-  val seq2 = List("uno", "due", "tre", "quattro")
+  val seq1: List[String] = List("one", "two", "three")
+  val seq2: List[String] = List("uno", "due", "tre", "quattro")
 
   "TestMerger.alternate" should "create a generic merger that alternates elements" in {
     val merger = TestMerger.alternate

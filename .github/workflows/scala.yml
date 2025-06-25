@@ -46,6 +46,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install sbt
 
+      - name: Check formatting
+        run: sbt scalafmtCheckAll
+
+      - name: Run scalafix
+        run: sbt "scalafixAll --check"
+
       - name: Run tests with coverage
         run: sbt clean coverage test coverageReport
 

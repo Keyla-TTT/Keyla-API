@@ -37,19 +37,43 @@ inThisBuild(List(
 ))
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-
+val tapirVersion = "1.11.34"
+val http4sVersion = "0.23.32"
+val catsEffectVersion = "3.6.1"
+val jsoniterVersion = "2.30.10"
 
 lazy val root = (project in file("."))
   .settings(
     name := "API-Scala",
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.19" % Test,
-      "org.testcontainers" % "mongodb" % "1.21.1" % Test,
-      "de.flapdoodle.embed" % "de.flapdoodle.embed.mongo" % "3.5.3" % Test,
+      "org.testcontainers" % "mongodb" % "1.21.2" % Test,
+      "de.flapdoodle.embed" % "de.flapdoodle.embed.mongo" % "4.20.1" % Test,
 
       // MongoDB driver
-      "org.mongodb" % "mongodb-driver-sync" % "5.5.1", // Driver Java sincrono
-      "org.mongodb" % "bson" % "5.5.0"// Driver Java sincrono
+      "org.mongodb" % "mongodb-driver-sync" % "5.5.1",
+      "org.mongodb" % "bson" % "5.5.0",
+
+      // Cats Effect
+      "org.typelevel" %% "cats-effect" % catsEffectVersion,
+      "org.typelevel" %% "cats-core" % "2.12.0",
+
+      // HTTP4s
+      "org.http4s" %% "http4s-blaze-server" % "0.23.17",
+
+
+      // Tapir with HTTP4s
+      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-jsoniter-scala" % tapirVersion,
+
+      // Jsoniter-scala
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-core" % jsoniterVersion,
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % jsoniterVersion % "compile-internal",
+
+      // Logging
+      "org.typelevel" %% "log4cats-slf4j" % "2.7.0",
+      "ch.qos.logback" % "logback-classic" % "1.5.16"
     ),
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % Test,
     libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "3.0.0",

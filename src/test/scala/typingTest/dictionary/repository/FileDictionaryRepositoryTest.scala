@@ -25,9 +25,9 @@ class FileDictionaryRepositoryTest
     // Create test directories and files
     italianDir.mkdirs()
     englishDir.mkdirs()
-    Files.writeString(new File(italianDir, "1k.txt").toPath, "italian1k")
-    Files.writeString(new File(italianDir, "10k.txt").toPath, "italian10k")
-    Files.writeString(new File(englishDir, "1k.txt").toPath, "english1k")
+    Files.write(new File(italianDir, "1k.txt").toPath, "italian1k".getBytes)
+    Files.write(new File(italianDir, "10k.txt").toPath, "italian10k".getBytes)
+    Files.write(new File(englishDir, "1k.txt").toPath, "english1k".getBytes)
 
     // Create a fresh repository instance
     repo = new FileDictionaryRepository(tempDir.getAbsolutePath)

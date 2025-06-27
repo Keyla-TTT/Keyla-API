@@ -3,14 +3,18 @@ repos:
     hooks:
       - id: scalafmt
         name: Scalafmt
-        entry: sbtx scalafmtCheckAll
+        entry: ./sbt.bat scalafmtCheckAll
         language: system
         pass_filenames: false
-        files: '.*\.scala$'
+        types: [ scala ]
+        always_run: true
+        verbose: true
 
       - id: scalafix
         name: Scalafix
-        entry: sbtx "scalafixAll --check"
+        entry: ./sbt.bat "scalafixAll --check"
         language: system
         pass_filenames: false
-        files: '.*\.scala$'
+        types: [ scala ]
+        always_run: true
+        verbose: true

@@ -33,5 +33,4 @@ class UserFactory:
       .withEmail(email)
       .withPassword(password)
       .withSettings(settings)
-
       .build()

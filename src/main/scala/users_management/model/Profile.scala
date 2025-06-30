@@ -14,9 +14,6 @@ trait Profile:
   /** Email address of the user */
   def email: String
 
-  /** Password of the user (hashed) */
-  def password: String
-
   /** Set of user settings/permissions */
   def settings: Set[String]
 
@@ -28,8 +25,6 @@ trait Profile:
     *   The new name or current if not specified
     * @param email
     *   The new email or current if not specified
-    * @param password
-    *   The new password or current if not specified
     * @param settings
     *   The new settings or current if not specified
     * @return
@@ -39,7 +34,6 @@ trait Profile:
       id: Option[String] = id,
       name: String = name,
       email: String = email,
-      password: String = password,
       settings: Set[String] = settings
   ): Profile
 
@@ -51,8 +45,6 @@ trait Profile:
   *   Name of the user
   * @param email
   *   Email address of the user
-  * @param password
-  *   Password of the user (hashed)
   * @param settings
   *   Set of user settings/permissions
   */
@@ -60,7 +52,6 @@ case class UserProfile(
     override val id: Option[String],
     override val name: String,
     override val email: String,
-    override val password: String,
     override val settings: Set[String]
 ) extends Profile:
   /** Creates a copy of this UserProfile with optional field updates
@@ -71,8 +62,6 @@ case class UserProfile(
     *   The new name or current if not specified
     * @param email
     *   The new email or current if not specified
-    * @param password
-    *   The new password or current if not specified
     * @param settings
     *   The new settings or current if not specified
     * @return
@@ -82,6 +71,5 @@ case class UserProfile(
       id: Option[String] = id,
       name: String = name,
       email: String = email,
-      password: String = password,
       settings: Set[String] = settings
-  ): UserProfile = UserProfile(id, name, email, password, settings)
+  ): UserProfile = UserProfile(id, name, email, settings)

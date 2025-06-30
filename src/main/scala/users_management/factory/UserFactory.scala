@@ -15,8 +15,6 @@ class UserFactory:
     *   The name of the user
     * @param email
     *   The email address of the user
-    * @param password
-    *   The user's password (will be hashed by the builder)
     * @param settings
     *   Set of user settings/permissions (defaults to empty set)
     * @return
@@ -25,12 +23,10 @@ class UserFactory:
   def createUserProfile(
       name: String,
       email: String,
-      password: String,
       settings: Set[String] = Set()
   ): UserProfile =
     UserProfileBuilder()
       .withName(name)
       .withEmail(email)
-      .withPassword(password)
       .withSettings(settings)
       .build()

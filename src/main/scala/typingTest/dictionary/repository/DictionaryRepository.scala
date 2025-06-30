@@ -29,3 +29,14 @@ trait DictionaryRepository:
     *   An Option containing the dictionary if found, None otherwise
     */
   def getDictionaryByName(name: String): Option[Dictionary]
+
+  /** Gets a dictionary by both language and name
+    *
+    * @param language
+    *   The language of the dictionary
+    * @param name
+    *   The name of the dictionary
+    * @return
+    *   An Option containing the dictionary if found, None otherwise
+    */
+  def getDictionaryByLanguageAndName(language: String, name: String): Option[Dictionary]

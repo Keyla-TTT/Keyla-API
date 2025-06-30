@@ -53,6 +53,12 @@ class FileDictionaryRepository(
       else None
     }.headOption
 
+  override def getDictionaryByLanguageAndName(language: String, name: String): Option[Dictionary] =
+    val file = new File(s"$baseDirectory/$language/$name$fileExtension")
+    if file.exists() && file.isFile then
+      Some(Dictionary(name, language, file.getAbsolutePath))
+    else None
+
   private def getFolderDictionaries(language: String, languageDir: File) =
     languageDir
       .listFiles()

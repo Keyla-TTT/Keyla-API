@@ -25,9 +25,10 @@ class FileDictionaryRepositoryTest
     // Create test directories and files
     italianDir.mkdirs()
     englishDir.mkdirs()
-    Files.write(new File(italianDir, "1k.txt").toPath, "italian1k".getBytes)
-    Files.write(new File(italianDir, "10k.txt").toPath, "italian10k".getBytes)
-    Files.write(new File(englishDir, "1k.txt").toPath, "english1k".getBytes)
+    Files.write(new File(italianDir, "italian_1k.txt").toPath, "italian1k".getBytes)
+    Files.write(new File(italianDir, "italian_10k.txt").toPath, "italian10k".getBytes)
+    Files.write(new File(englishDir, "english_1k.txt").toPath, "english1k".getBytes)
+    Files.write(new File(englishDir, "english_10k.txt").toPath, "english10k".getBytes)
 
     // Create a fresh repository instance
     repo = new FileDictionaryRepository(tempDir.getAbsolutePath)
@@ -47,38 +48,57 @@ class FileDictionaryRepositoryTest
   "FileDictionaryRepository" should "find all dictionaries" in {
     val dictionaries = repo.getAllDictionaries
 
-    dictionaries.size shouldBe 3
-    dictionaries.map(_.name).toSet shouldBe Set("1k", "10k", "1k")
+    dictionaries.size shouldBe 4
+    dictionaries.map(_.name).toSet shouldBe Set("italian_1k", "italian_10k", "english_1k", "english_10k")
     dictionaries.map(_.language).toSet shouldBe Set("italian", "english")
   }
 
   it should "find dictionaries by language" in {
     val italianDicts = repo.getDictionariesByLanguage("italian")
     italianDicts.size shouldBe 2
-    italianDicts.map(_.name).toSet shouldBe Set("1k", "10k")
+    italianDicts.map(_.name).toSet shouldBe Set("italian_1k", "italian_10k")
     italianDicts.foreach(_.language shouldBe "italian")
 
     val englishDicts = repo.getDictionariesByLanguage("english")
-    englishDicts.size shouldBe 1
-    englishDicts.head.name shouldBe "1k"
-    englishDicts.head.language shouldBe "english"
+    englishDicts.size shouldBe 2
+    englishDicts.map(_.name).toSet shouldBe Set("english_1k", "english_10k")
+    englishDicts.foreach(_.language shouldBe "english")
 
     val nonExistentDicts = repo.getDictionariesByLanguage("spanish")
     nonExistentDicts shouldBe empty
   }
 
   it should "find a dictionary by name" in {
-    val dict = repo.getDictionaryByName("1k")
+    val dict = repo.getDictionaryByName("italian_1k")
     dict should not be None
-    dict.map(_.name) shouldBe Some("1k")
+    dict.map(_.name) shouldBe Some("italian_1k")
+    dict.map(_.language) shouldBe Some("italian")
 
-    val dict10k = repo.getDictionaryByName("10k")
+    val dict10k = repo.getDictionaryByName("english_10k")
     dict10k should not be None
-    dict10k.map(_.name) shouldBe Some("10k")
-    dict10k.map(_.language) shouldBe Some("italian")
+    dict10k.map(_.name) shouldBe Some("english_10k")
+    dict10k.map(_.language) shouldBe Some("english")
 
     val nonExistentDict = repo.getDictionaryByName("nonexistent")
     nonExistentDict shouldBe None
+  }
+
+  it should "find a dictionary by language and name" in {
+    val italianDict = repo.getDictionaryByLanguageAndName("italian", "italian_1k")
+    italianDict should not be None
+    italianDict.map(_.name) shouldBe Some("italian_1k")
+    italianDict.map(_.language) shouldBe Some("italian")
+
+    val englishDict = repo.getDictionaryByLanguageAndName("english", "english_10k")
+    englishDict should not be None
+    englishDict.map(_.name) shouldBe Some("english_10k")
+    englishDict.map(_.language) shouldBe Some("english")
+
+    val nonExistentDict = repo.getDictionaryByLanguageAndName("italian", "nonexistent")
+    nonExistentDict shouldBe None
+
+    val wrongLanguage = repo.getDictionaryByLanguageAndName("spanish", "italian_1k")
+    wrongLanguage shouldBe None
   }
 
   it should "handle non-existent directories gracefully" in {
@@ -91,4 +111,5 @@ class FileDictionaryRepositoryTest
     emptyRepo.getAllDictionaries shouldBe empty
     emptyRepo.getDictionariesByLanguage("any") shouldBe empty
     emptyRepo.getDictionaryByName("any") shouldBe None
+    emptyRepo.getDictionaryByLanguageAndName("any", "any") shouldBe None
   }

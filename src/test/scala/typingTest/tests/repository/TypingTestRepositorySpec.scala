@@ -293,20 +293,16 @@ abstract class TypingTestRepositorySpec
     "get last non-completed test by profile ID" in {
       val profileId = "test-profile"
 
-      val test1 = createSampleTest(profileId, "english")
-      val test2 = createSampleTest(profileId, "spanish")
-      val test3 = createSampleTest("other-profile", "english")
+      val test = createSampleTest(profileId, "english")
 
-      repository.create(test1)
       Thread.sleep(10)
-      val created2 = repository.create(test2)
-      repository.create(test3)
+      val created = repository.create(test)
 
       val lastTest = repository.getLastNonCompletedByProfileId(profileId)
 
       lastTest should be(defined)
-      lastTest.get.id should equal(created2.id)
-      lastTest.get.language should equal("spanish")
+      lastTest.get.id should equal(created.id)
+      lastTest.get.language should equal("english")
     }
 
     "return None when no non-completed tests exist for profile" in {

@@ -5,6 +5,7 @@ import typingTest.dictionary.model.Dictionary
 import typingTest.tests.model.ModifiersFacade.onlyOfType
 import typingTest.tests.model.{
   CompletedInfo,
+  DefaultContext,
   MergeOps,
   NamedModifier,
   TypingTest
@@ -39,7 +40,7 @@ object TestBuilder:
       builder.copy(sources = Seq(source))
     def useModifier(modifier: NamedModifier[Any, O]): TestBuilder[O] =
       builder.copy(modifiers = builder.modifiers :+ modifier)
-    def build: TypingTest[O] =
+    def build: TypingTest[O] & DefaultContext =
       require(builder.loader.isDefined, "Loader must be defined")
       require(builder.sources.nonEmpty, "At least one source must be defined")
       val modifiers =

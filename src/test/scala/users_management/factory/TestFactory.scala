@@ -9,19 +9,16 @@ class TestFactory extends AnyFunSuite, Matchers:
 
   val validName = "Mario Rossi"
   val validEmail = "mario.rossi@email.com"
-  val validPassword = "password123"
   val validSettings: Set[String] = Set("dark_mode", "notifications")
 
   def profileMatcher(
       name: String,
       email: String,
-      password: String,
       settings: Set[String]
   ): Matcher[Object] =
     have(
       Symbol("name")(name),
       Symbol("email")(email),
-      Symbol("password")(password),
       Symbol("settings")(settings)
     )
 
@@ -31,13 +28,11 @@ class TestFactory extends AnyFunSuite, Matchers:
     val profile = factory.createUserProfile(
       validName,
       validEmail,
-      validPassword,
       validSettings
     )
     profile should profileMatcher(
       validName,
       validEmail,
-      validPassword,
       validSettings
     )
   }
@@ -46,30 +41,18 @@ class TestFactory extends AnyFunSuite, Matchers:
     "createUserProfile restituisce UserProfile con settings vuoto se non specificato"
   ) {
     val profile =
-      factory.createUserProfile(validName, validEmail, validPassword)
+      factory.createUserProfile(validName, validEmail)
     profile.settings shouldBe empty
   }
 
   test("createUserProfile gestisce nome vuoto") {
     val profile =
-      factory.createUserProfile("", validEmail, validPassword, validSettings)
+      factory.createUserProfile("", validEmail, validSettings)
     profile.name shouldBe ""
   }
 
   test("createUserProfile gestisce email vuota") {
     val profile =
-      factory.createUserProfile(validName, "", validPassword, validSettings)
+      factory.createUserProfile(validName, "", validSettings)
     profile.email shouldBe ""
-  }
-
-  test("createUserProfile gestisce password vuota") {
-    val profile =
-      factory.createUserProfile(validName, validEmail, "", validSettings)
-    profile.password shouldBe ""
-  }
-
-  test("createUserProfile gestisce settings vuoto") {
-    val profile =
-      factory.createUserProfile(validName, validEmail, validPassword, Set())
-    profile.settings shouldBe empty
   }

@@ -113,6 +113,10 @@ trait TypingTest[I] extends TypingContext:
     *   Sequence of test elements
     */
   def words: Seq[I]
+trait DefaultContext extends TypingContext:
+  override type Modifier = String
+  override type Source = Dictionary
+  override type Info = CompletedInfo
 
 /** Concrete implementation of a typing test with string-based words
   * @param sources
@@ -129,10 +133,8 @@ private case class BasicTypingTest[T](
     modifiers: Seq[String],
     info: CompletedInfo,
     words: Seq[T]
-) extends TypingTest[T]:
-  override type Info = CompletedInfo
-  override type Modifier = String
-  override type Source = Dictionary
+) extends TypingTest[T]
+    with DefaultContext
 
 object TypingTest:
   /** Creates a new BasicTypingTest instance
@@ -152,4 +154,5 @@ object TypingTest:
       modifiers: Seq[String],
       info: CompletedInfo,
       words: Seq[T]
-  ): TypingTest[T] = BasicTypingTest(sources, modifiers, info, words)
+  ): TypingTest[T] & DefaultContext =
+    BasicTypingTest(sources, modifiers, info, words)

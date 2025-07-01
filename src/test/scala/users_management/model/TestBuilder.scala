@@ -10,21 +10,18 @@ class TestBuilder extends AnyFunSuite, Matchers:
   val validId = "123"
   val validName = "Mario Rossi"
   val validEmail = "mario.rossi@email.com"
-  val validPassword = "password123"
   val validSettings: Set[String] = Set("dark_mode", "notifications")
 
   def profileMatcher(
       id: Option[String],
       name: String,
       email: String,
-      password: String,
       settings: Set[String]
   ): Matcher[Object] =
     have(
       Symbol("id")(id),
       Symbol("name")(name),
       Symbol("email")(email),
-      Symbol("password")(password),
       Symbol("settings")(settings)
     )
 
@@ -33,21 +30,19 @@ class TestBuilder extends AnyFunSuite, Matchers:
       .withId(validId)
       .withName(validName)
       .withEmail(validEmail)
-      .withPassword(validPassword)
       .withSettings(validSettings)
       .build()
     profile should profileMatcher(
       Some(validId),
       validName,
       validEmail,
-      validPassword,
       validSettings
     )
   }
 
   test("build crea UserProfile con valori di default se non impostati") {
     val profile = UserProfileBuilder().build()
-    profile should profileMatcher(None, "", "", "", Set())
+    profile should profileMatcher(None, "", "", Set())
   }
 
   test("build crea UserProfile con solo alcuni campi impostati") {
@@ -55,7 +50,7 @@ class TestBuilder extends AnyFunSuite, Matchers:
       .withName(validName)
       .withEmail(validEmail)
       .build()
-    profile should profileMatcher(None, validName, validEmail, "", Set())
+    profile should profileMatcher(None, validName, validEmail, Set())
   }
 
   test("withSettings sovrascrive i settings precedenti") {

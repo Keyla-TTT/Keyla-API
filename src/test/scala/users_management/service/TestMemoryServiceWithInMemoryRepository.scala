@@ -20,7 +20,6 @@ class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers:
     val profile = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
 
@@ -36,7 +35,6 @@ class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers:
     val profile = factory.createUserProfile(
       "Luigi",
       "luigi@test.com",
-      "password",
       Set("user")
     )
     val created = service.createProfile(profile)
@@ -55,35 +53,28 @@ class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers:
     val profile = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     val created = service.createProfile(profile)
-
-    val updated = UserProfile(
-      created.id,
-      "Super Mario",
-      "mario@test.com",
-      "newpass",
-      Set("admin")
-    )
-    val result = service.updateProfile(updated)
-
-    result shouldBe Some(updated)
-    service.getProfile(created.id.get) shouldBe Some(updated)
+    val updated = factory
+      .createUserProfile(
+        "Super Mario",
+        created.email,
+        Set("admin")
+      )
+      .copy(id = created.id)
+    service.updateProfile(updated) shouldBe Some(updated)
   }
 
   it should "return None when updating non-existing profile" in {
     val (service, _, factory) = createCleanTestEnvironment()
-    val profile = UserProfile(
-      Some("non-existing"),
+    val profile = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
-
-    service.updateProfile(profile) shouldBe None
+    val nonExisting = profile.copy(id = Some("non-existing"))
+    service.updateProfile(nonExisting) shouldBe None
   }
 
   it should "delete an existing profile" in {
@@ -91,17 +82,15 @@ class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers:
     val profile = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     val created = service.createProfile(profile)
-
     service.deleteProfile(created.id.get) shouldBe true
     service.getProfile(created.id.get) shouldBe None
   }
 
   it should "return false when deleting non-existing profile" in {
-    val (service, _, _) = createCleanTestEnvironment()
+    val (service, _, factory) = createCleanTestEnvironment()
     service.deleteProfile("non-existing") shouldBe false
   }
 
@@ -110,13 +99,11 @@ class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers:
     val profile1 = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     val profile2 = factory.createUserProfile(
       "Luigi",
       "luigi@test.com",
-      "password",
       Set("admin")
     )
     service.createProfile(profile1)
@@ -134,26 +121,21 @@ class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers:
     val profile1 = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     val profile2 = factory.createUserProfile(
       "Luigi",
       "luigi@test.com",
-      "password",
       Set("admin")
     )
-
     val created1 = service.createProfile(profile1)
     val created2 = service.createProfile(profile2)
-
     val profiles = service.listProfiles()
     profiles should contain allOf (created1, created2)
     profiles should have size 2
   }
 
   it should "return empty list when no profiles exist" in {
-    val emptyRepository = new InMemoryProfileRepository()
-    val service = ProfileServiceImpl(emptyRepository)
+    val (service, _, factory) = createCleanTestEnvironment()
     service.listProfiles() shouldBe empty
   }

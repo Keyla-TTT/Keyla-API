@@ -19,7 +19,6 @@ class MongoProfileRepository(dbInfos: DatabaseInfos) extends ProfileRepository:
     new Document()
       .append("name", profile.name)
       .append("email", profile.email)
-      .append("password", profile.password)
       .append("settings", profile.settings.toList.asJava)
 
   private def fromDocument(doc: Document): Profile =
@@ -27,7 +26,6 @@ class MongoProfileRepository(dbInfos: DatabaseInfos) extends ProfileRepository:
       id = Some(doc.getObjectId("_id").toString),
       name = doc.getString("name"),
       email = doc.getString("email"),
-      password = doc.getString("password"),
       settings = doc.getList("settings", classOf[String]).asScala.toSet
     )
 
@@ -51,7 +49,6 @@ class MongoProfileRepository(dbInfos: DatabaseInfos) extends ProfileRepository:
           new Document()
             .append("name", profile.name)
             .append("email", profile.email)
-            .append("password", profile.password)
             .append("settings", profile.settings.toList.asJava)
         )
         val result = collection.updateOne(

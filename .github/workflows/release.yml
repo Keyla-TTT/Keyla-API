@@ -14,6 +14,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build with SBT
+        run: sbt package
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:

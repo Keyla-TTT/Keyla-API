@@ -4,7 +4,6 @@ class UserProfileBuilder:
   private var id: Option[String] = None
   private var name: String = ""
   private var email: String = ""
-  private var password: String = ""
   private var settings: Set[String] = Set()
 
   def withId(id: String): UserProfileBuilder =
@@ -19,13 +18,9 @@ class UserProfileBuilder:
     this.email = email
     this
 
-  def withPassword(password: String): UserProfileBuilder =
-    this.password = password
-    this
-
   def withSettings(settings: Set[String]): UserProfileBuilder =
     this.settings = settings
     this
 
   def build(): UserProfile =
-    UserProfile(id, name, email, password, settings)
+    UserProfile(id, name, email, settings)

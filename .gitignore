@@ -13,3 +13,7 @@ target/**
 project/project/**
 **/target/**
 .bsp
+
+.metals
+.vscode
+keyla-config.json

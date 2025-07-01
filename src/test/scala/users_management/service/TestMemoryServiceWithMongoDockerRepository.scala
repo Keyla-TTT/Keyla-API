@@ -7,6 +7,7 @@ import org.scalatest.matchers.should.Matchers
 import org.testcontainers.containers.MongoDBContainer
 import users_management.factory.UserFactory
 import users_management.repository.{DatabaseInfos, MongoProfileRepository}
+import scala.compiletime.uninitialized
 
 class TestMemoryServiceWithMongoDockerRepository
     extends AnyFunSuite
@@ -14,8 +15,8 @@ class TestMemoryServiceWithMongoDockerRepository
     with BeforeAndAfterAll
     with Matchers:
   private val mongoContainer = new MongoDBContainer("mongo:6.0")
-  private var service: ProfileService = _
-  private var repository: MongoProfileRepository = _
+  private var service: ProfileService = uninitialized
+  private var repository: MongoProfileRepository = uninitialized
   private val factory = new UserFactory()
 
   override def beforeAll(): Unit =
@@ -43,7 +44,6 @@ class TestMemoryServiceWithMongoDockerRepository
     val profile = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     val created = service.createProfile(profile)
@@ -55,7 +55,6 @@ class TestMemoryServiceWithMongoDockerRepository
     val profile = factory.createUserProfile(
       "Luigi",
       "luigi@test.com",
-      "password",
       Set("admin")
     )
     val created = service.createProfile(profile)
@@ -70,7 +69,6 @@ class TestMemoryServiceWithMongoDockerRepository
     val profile = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     val created = service.createProfile(profile)
@@ -78,7 +76,6 @@ class TestMemoryServiceWithMongoDockerRepository
       .createUserProfile(
         "Super Mario",
         created.email,
-        created.password,
         Set("admin")
       )
       .copy(id = created.id)
@@ -89,7 +86,6 @@ class TestMemoryServiceWithMongoDockerRepository
     val profile = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     val nonExisting = profile.copy(id = Some("507f1f77bcf86cd799439011"))
@@ -100,7 +96,6 @@ class TestMemoryServiceWithMongoDockerRepository
     val profile = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     val created = service.createProfile(profile)
@@ -116,13 +111,11 @@ class TestMemoryServiceWithMongoDockerRepository
     val profile1 = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     val profile2 = factory.createUserProfile(
       "Luigi",
       "luigi@test.com",
-      "password",
       Set("admin")
     )
     val created1 = service.createProfile(profile1)
@@ -140,7 +133,6 @@ class TestMemoryServiceWithMongoDockerRepository
     val profile = factory.createUserProfile(
       "Mario",
       "mario@test.com",
-      "password",
       Set("user")
     )
     service.createProfile(profile)

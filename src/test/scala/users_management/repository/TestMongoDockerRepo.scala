@@ -6,6 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.testcontainers.containers.MongoDBContainer
 import users_management.model.UserProfile
 import org.scalatest.matchers.should.Matchers
+import scala.compiletime.uninitialized
 
 class TestMongoDockerRepo
     extends AnyFunSuite
@@ -14,12 +15,11 @@ class TestMongoDockerRepo
     with Matchers:
   private val mongoContainer = new MongoDBContainer("mongo:6.0")
 
-  private var repository: MongoProfileRepository = _
+  private var repository: MongoProfileRepository = uninitialized
   private val testProfile = UserProfile(
     None,
     "Test User",
     "test@example.com",
-    "password123",
     Set("setting1", "setting2")
   )
 

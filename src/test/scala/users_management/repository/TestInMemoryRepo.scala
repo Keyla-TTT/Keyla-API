@@ -4,12 +4,13 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.BeforeAndAfter
 import users_management.model.UserProfile
+import scala.compiletime.uninitialized
 
 class TestInMemoryRepo extends AnyFunSuite with Matchers with BeforeAndAfter:
 
-  private var repo: InMemoryProfileRepository = _
+  private var repo: InMemoryProfileRepository = uninitialized
   private val testProfile =
-    UserProfile(None, "Mario", "mario@email.com", "pass", Set("a"))
+    UserProfile(None, "Mario", "mario@email.com", Set("a"))
 
   before {
     repo = new InMemoryProfileRepository()
@@ -39,7 +40,6 @@ class TestInMemoryRepo extends AnyFunSuite with Matchers with BeforeAndAfter:
       Some("non-esistente"),
       "Mario",
       "mario@email.com",
-      "pass",
       Set("a")
     )
     repo.update(nonExisting) shouldBe None

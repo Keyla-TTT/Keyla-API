@@ -47,5 +47,29 @@ class InMemoryTypingTestRepository extends TypingTestRepository:
   override def getByLanguage(language: String): List[PersistedTypingTest] =
     tests.values.filter(_.language == language).toList
 
-  override def getByProfileIdAndLanguage(profileId: String, language: String): List[PersistedTypingTest] =
-    tests.values.filter(test => test.profileId == profileId && test.language == language).toList 
+  override def getByProfileIdAndLanguage(
+      profileId: String,
+      language: String
+  ): List[PersistedTypingTest] =
+    tests.values
+      .filter(test => test.profileId == profileId && test.language == language)
+      .toList
+
+  override def getLastNonCompletedByProfileId(
+      profileId: String
+  ): Option[PersistedTypingTest] =
+    tests.values
+      .filter(test => test.profileId == profileId && !test.isCompleted)
+      .toList
+      .sortBy(_.createdAt.getMillis)
+      .lastOption
+
+  override def deleteNonCompletedByProfileId(profileId: String): Int =
+    val toDelete = tests.values
+      .filter(test => test.profileId == profileId && !test.isCompleted)
+      .toList
+    toDelete.foreach(test => test.id.foreach(tests.remove))
+    toDelete.size
+
+  override def getCompletedById(id: String): Option[PersistedTypingTest] =
+    tests.get(id).filter(_.isCompleted)

@@ -4,9 +4,9 @@ import typingTest.tests.model.PersistedTypingTest
 
 /** Repository trait for managing typing tests.
   *
-  * This trait defines the contract for storing and retrieving PersistedTypingTest entities.
-  * Implementations of this trait should handle the persistence layer operations
-  * for typing tests (e.g. database access).
+  * This trait defines the contract for storing and retrieving
+  * PersistedTypingTest entities. Implementations of this trait should handle
+  * the persistence layer operations for typing tests (e.g. database access).
   */
 trait TypingTestRepository:
 
@@ -87,4 +87,37 @@ trait TypingTestRepository:
     * @return
     *   A list of typing tests for the profile in the specified language
     */
-  def getByProfileIdAndLanguage(profileId: String, language: String): List[PersistedTypingTest] 
+  def getByProfileIdAndLanguage(
+      profileId: String,
+      language: String
+  ): List[PersistedTypingTest]
+
+  /** Retrieves the last non-completed test for a profile.
+    *
+    * @param profileId
+    *   The ID of the profile
+    * @return
+    *   Some(PersistedTypingTest) if found, None if no non-completed test exists
+    */
+  def getLastNonCompletedByProfileId(
+      profileId: String
+  ): Option[PersistedTypingTest]
+
+  /** Deletes all non-completed tests for a profile.
+    *
+    * @param profileId
+    *   The ID of the profile
+    * @return
+    *   The number of tests deleted
+    */
+  def deleteNonCompletedByProfileId(profileId: String): Int
+
+  /** Retrieves a completed test by its ID.
+    *
+    * @param id
+    *   The unique identifier of the test
+    * @return
+    *   Some(PersistedTypingTest) if found and completed, None if not found or
+    *   not completed
+    */
+  def getCompletedById(id: String): Option[PersistedTypingTest]

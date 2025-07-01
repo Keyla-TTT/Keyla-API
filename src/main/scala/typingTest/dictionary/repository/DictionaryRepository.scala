@@ -39,4 +39,7 @@ trait DictionaryRepository:
     * @return
     *   An Option containing the dictionary if found, None otherwise
     */
-  def getDictionaryByLanguageAndName(language: String, name: String): Option[Dictionary]
+  def getDictionaryByLanguageAndName(
+      language: String,
+      name: String
+  ): Option[Dictionary]

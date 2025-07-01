@@ -25,10 +25,22 @@ class FileDictionaryRepositoryTest
     // Create test directories and files
     italianDir.mkdirs()
     englishDir.mkdirs()
-    Files.write(new File(italianDir, "italian_1k.txt").toPath, "italian1k".getBytes)
-    Files.write(new File(italianDir, "italian_10k.txt").toPath, "italian10k".getBytes)
-    Files.write(new File(englishDir, "english_1k.txt").toPath, "english1k".getBytes)
-    Files.write(new File(englishDir, "english_10k.txt").toPath, "english10k".getBytes)
+    Files.write(
+      new File(italianDir, "italian_1k.txt").toPath,
+      "italian1k".getBytes
+    )
+    Files.write(
+      new File(italianDir, "italian_10k.txt").toPath,
+      "italian10k".getBytes
+    )
+    Files.write(
+      new File(englishDir, "english_1k.txt").toPath,
+      "english1k".getBytes
+    )
+    Files.write(
+      new File(englishDir, "english_10k.txt").toPath,
+      "english10k".getBytes
+    )
 
     // Create a fresh repository instance
     repo = new FileDictionaryRepository(tempDir.getAbsolutePath)
@@ -49,7 +61,12 @@ class FileDictionaryRepositoryTest
     val dictionaries = repo.getAllDictionaries
 
     dictionaries.size shouldBe 4
-    dictionaries.map(_.name).toSet shouldBe Set("italian_1k", "italian_10k", "english_1k", "english_10k")
+    dictionaries.map(_.name).toSet shouldBe Set(
+      "italian_1k",
+      "italian_10k",
+      "english_1k",
+      "english_10k"
+    )
     dictionaries.map(_.language).toSet shouldBe Set("italian", "english")
   }
 
@@ -84,20 +101,24 @@ class FileDictionaryRepositoryTest
   }
 
   it should "find a dictionary by language and name" in {
-    val italianDict = repo.getDictionaryByLanguageAndName("italian", "italian_1k")
+    val italianDict =
+      repo.getDictionaryByLanguageAndName("italian", "italian_1k")
     italianDict should not be None
     italianDict.map(_.name) shouldBe Some("italian_1k")
     italianDict.map(_.language) shouldBe Some("italian")
 
-    val englishDict = repo.getDictionaryByLanguageAndName("english", "english_10k")
+    val englishDict =
+      repo.getDictionaryByLanguageAndName("english", "english_10k")
     englishDict should not be None
     englishDict.map(_.name) shouldBe Some("english_10k")
     englishDict.map(_.language) shouldBe Some("english")
 
-    val nonExistentDict = repo.getDictionaryByLanguageAndName("italian", "nonexistent")
+    val nonExistentDict =
+      repo.getDictionaryByLanguageAndName("italian", "nonexistent")
     nonExistentDict shouldBe None
 
-    val wrongLanguage = repo.getDictionaryByLanguageAndName("spanish", "italian_1k")
+    val wrongLanguage =
+      repo.getDictionaryByLanguageAndName("spanish", "italian_1k")
     wrongLanguage shouldBe None
   }
 

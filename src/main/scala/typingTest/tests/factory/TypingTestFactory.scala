@@ -3,7 +3,13 @@ package typingTest.tests.factory
 import typingTest.dictionary.loader.DictionaryLoader
 import typingTest.dictionary.model.Dictionary
 import typingTest.tests.model.ModifiersFacade.onlyOfType
-import typingTest.tests.model.{CompletedInfo, DefaultContext, MergeOps, NamedModifier, TypingTest}
+import typingTest.tests.model.{
+  CompletedInfo,
+  DefaultContext,
+  MergeOps,
+  NamedModifier,
+  TypingTest
+}
 
 import scala.reflect.ClassTag
 

@@ -144,11 +144,17 @@ jobs:
       - name: Generate documentation
         run: sbt doc
 
+      - name: Copy docs to flat structure
+        run: |
+          mkdir -p docs-to-deploy
+          cp -r target/scala-*/api/* docs-to-deploy/
+          ls -la docs-to-deploy/
+
       - name: Upload documentation
         uses: actions/upload-artifact@v4
         with:
           name: api-documentation
-          path: target/scala-*/api
+          path: docs-to-deploy
 
   deploy-docs:
     needs: docs
@@ -157,12 +163,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: sbt/setup-sbt@v1
       - name: Download documentation
         uses: actions/download-artifact@v4
         with:
           name: api-documentation
-          path: ./api-docs
+          path: ./docs
+
+      - name: List downloaded files (debug)
+        run: |
+          echo "Contents of ./docs:"
+          find ./docs -type f | head -20
+          echo "Looking for index.html:"
+          find ./docs -name "index.html"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -170,7 +182,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./api-docs
+          path: ./docs
 
       - name: Deploy to GitHub Pages
         id: deployment

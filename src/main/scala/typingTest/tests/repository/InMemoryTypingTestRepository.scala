@@ -1,6 +1,7 @@
 package typingTest.tests.repository
 
 import typingTest.tests.model.PersistedTypingTest
+
 import scala.collection.mutable
 
 class InMemoryTypingTestRepository extends TypingTestRepository:

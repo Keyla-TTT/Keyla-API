@@ -1,16 +1,17 @@
 package typingTest.tests.repository
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers
+import com.github.nscala_time.time.Imports.DateTime
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import typingTest.dictionary.model.Dictionary
 import typingTest.tests.model.{
   CompletedInfo,
   DefaultContext,
   PersistedTypingTest,
   TypingTest
 }
-import typingTest.dictionary.model.Dictionary
-import com.github.nscala_time.time.Imports.DateTime
+
 import scala.compiletime.uninitialized
 
 abstract class TypingTestRepositorySpec

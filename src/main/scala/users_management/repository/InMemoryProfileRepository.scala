@@ -1,6 +1,7 @@
 package users_management.repository
 
 import users_management.model.Profile
+
 import scala.collection.mutable
 
 class InMemoryProfileRepository extends ProfileRepository:

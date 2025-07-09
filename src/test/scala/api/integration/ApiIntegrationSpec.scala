@@ -8,13 +8,7 @@ import api.services.TypingTestService
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.plokhotnyuk.jsoniter_scala.core.*
-import config.{
-  AppConfig,
-  ConfigurationService,
-  DatabaseConfig,
-  DictionaryConfig,
-  ServerConfig
-}
+import config.*
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
@@ -22,8 +16,8 @@ import org.scalatest.wordspec.AsyncWordSpec
 import sttp.client3.*
 import sttp.client3.http4s.Http4sBackend
 import sttp.client3.jsoniter.*
-import sttp.tapir.json.jsoniter.*
 import sttp.model.{StatusCode, Uri}
+import sttp.tapir.json.jsoniter.*
 import typingTest.dictionary.repository.{
   DictionaryRepository,
   FileDictionaryRepository

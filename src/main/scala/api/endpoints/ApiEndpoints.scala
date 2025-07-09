@@ -3,10 +3,10 @@ package api.endpoints
 import api.models.*
 import api.models.ApiModels.given
 import config.*
-import sttp.tapir.*
-import sttp.tapir.json.jsoniter.*
-import sttp.tapir.generic.auto.*
 import sttp.model.StatusCode
+import sttp.tapir.*
+import sttp.tapir.generic.auto.*
+import sttp.tapir.json.jsoniter.*
 
 /** Defines all REST API endpoints for the Keyla typing test application.
   *

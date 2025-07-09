@@ -1,6 +1,6 @@
 package api.services
 
-import typingTest.tests.model.{NamedModifier, ModifiersFacade}
+import typingTest.tests.model.{ModifiersFacade, NamedModifier}
 
 /** Resolver for text transformation modifiers used in typing tests.
   *

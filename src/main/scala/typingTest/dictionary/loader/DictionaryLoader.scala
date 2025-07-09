@@ -1,9 +1,10 @@
 package typingTest.dictionary.loader
 
 import typingTest.dictionary.model.Dictionary
-import scala.io.Source
-import scala.util.{Try, Success, Failure}
+
 import scala.collection.concurrent.TrieMap
+import scala.io.Source
+import scala.util.{Failure, Success, Try}
 
 /** Trait for loading dictionary words from files
   */

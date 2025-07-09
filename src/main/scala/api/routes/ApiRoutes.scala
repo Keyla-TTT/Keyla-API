@@ -1,11 +1,10 @@
 package api.routes
 
-import api.endpoints.ApiEndpoints
 import api.controllers.TypingTestController
-import api.models.AppError
-import api.models.ErrorResponse
-import sttp.tapir.server.ServerEndpoint
+import api.endpoints.ApiEndpoints
+import api.models.{AppError, ErrorResponse}
 import cats.effect.IO
+import sttp.tapir.server.ServerEndpoint
 
 class ApiRoutes(controller: TypingTestController):
 

@@ -1,8 +1,8 @@
 package typingTest.tests.model
 
+import com.github.nscala_time.time.Imports.DateTime
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import com.github.nscala_time.time.Imports.DateTime
 import typingTest.dictionary.model.Dictionary
 
 class TypingTestSpec extends AnyFlatSpec with Matchers:

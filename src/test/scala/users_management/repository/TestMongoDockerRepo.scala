@@ -1,11 +1,11 @@
 package users_management.repository
 
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 import org.testcontainers.containers.MongoDBContainer
 import users_management.model.UserProfile
-import org.scalatest.matchers.should.Matchers
+
 import scala.compiletime.uninitialized
 
 class TestMongoDockerRepo

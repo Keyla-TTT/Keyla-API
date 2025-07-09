@@ -1,17 +1,16 @@
 package api.services
 
 import api.models.*
-import api.models.*
 import api.models.AppError.*
-import users_management.model.{Profile, UserProfile}
-import users_management.repository.ProfileRepository
-import typingTest.tests.model.{DefaultContext, PersistedTypingTest, TypingTest}
-import typingTest.tests.repository.TypingTestRepository
-import typingTest.tests.factory.TypingTestFactory
+import cats.effect.IO
+import typingTest.dictionary.loader.{DictionaryLoader, FileDictionaryLoader}
 import typingTest.dictionary.model.Dictionary
 import typingTest.dictionary.repository.DictionaryRepository
-import typingTest.dictionary.loader.{DictionaryLoader, FileDictionaryLoader}
-import cats.effect.IO
+import typingTest.tests.factory.TypingTestFactory
+import typingTest.tests.model.{DefaultContext, PersistedTypingTest, TypingTest}
+import typingTest.tests.repository.TypingTestRepository
+import users_management.model.{Profile, UserProfile}
+import users_management.repository.ProfileRepository
 
 /** Core business logic service for managing typing tests, user profiles, and
   * dictionaries.

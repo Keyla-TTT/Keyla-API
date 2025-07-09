@@ -1,7 +1,6 @@
 package api.controllers
 
 import api.models.*
-import api.models.*
 import api.services.TypingTestService
 import cats.effect.IO
 import config.*

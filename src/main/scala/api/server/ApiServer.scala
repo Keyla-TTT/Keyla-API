@@ -1,18 +1,18 @@
 package api.server
 
+import api.controllers.TypingTestController
 import api.endpoints.ApiEndpoints
 import api.routes.ApiRoutes
-import api.controllers.TypingTestController
 import cats.effect.{ExitCode, IO, Resource}
 import cats.syntax.all.*
 import com.comcast.ip4s.*
 import org.http4s.HttpApp
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.Router
-import sttp.tapir.server.http4s.Http4sServerInterpreter
-import sttp.tapir.swagger.bundle.SwaggerInterpreter
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import sttp.tapir.server.http4s.Http4sServerInterpreter
+import sttp.tapir.swagger.bundle.SwaggerInterpreter
 
 import scala.concurrent.ExecutionContext
 

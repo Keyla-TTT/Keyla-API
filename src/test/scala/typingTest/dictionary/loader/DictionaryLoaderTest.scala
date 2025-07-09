@@ -3,6 +3,7 @@ package typingTest.dictionary.loader
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import typingTest.dictionary.model.Dictionary
+
 import java.io.File
 import java.nio.file.Files
 

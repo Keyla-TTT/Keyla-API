@@ -1,18 +1,19 @@
 package api.services
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfterEach
-import cats.effect.unsafe.implicits.global
-import api.models.{CreateProfileRequest, TestRequest, TestResultsRequest}
 import api.models.AppError.*
-import users_management.repository.InMemoryProfileRepository
-import users_management.model.UserProfile
-import typingTest.tests.repository.InMemoryTypingTestRepository
+import api.models.{CreateProfileRequest, TestRequest, TestResultsRequest}
+import cats.effect.unsafe.implicits.global
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import typingTest.dictionary.repository.{
   DictionaryRepository,
   FileDictionaryRepository
 }
+import typingTest.tests.repository.InMemoryTypingTestRepository
+import users_management.model.UserProfile
+import users_management.repository.InMemoryProfileRepository
+
 import java.io.File
 import java.nio.file.Files
 import scala.compiletime.uninitialized

@@ -1,12 +1,13 @@
 package typingTest.tests.repository
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfterAll
-import users_management.repository.DatabaseInfos
 import com.mongodb.client.MongoClients
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import org.testcontainers.containers.MongoDBContainer
 import org.testcontainers.utility.DockerImageName
+import users_management.repository.DatabaseInfos
+
 import scala.compiletime.uninitialized
 
 class MongoTypingTestRepositorySpec

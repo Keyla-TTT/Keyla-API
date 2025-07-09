@@ -1,6 +1,7 @@
 package typingTest.dictionary.repository
 
 import typingTest.dictionary.model.Dictionary
+
 import java.io.File
 import java.nio.file.{Files, Paths}
 

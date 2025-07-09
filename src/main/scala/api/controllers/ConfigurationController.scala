@@ -2,13 +2,7 @@ package api.controllers
 
 import api.models.AppError
 import cats.effect.IO
-import config.{
-  ConfigKey,
-  ConfigListResponse,
-  ConfigUpdateRequest,
-  ConfigUpdateResponse,
-  ConfigurationService
-}
+import config.*
 
 /** Controller for handling configuration management REST API endpoints.
   * Provides a thin layer over ConfigurationService for HTTP API operations.

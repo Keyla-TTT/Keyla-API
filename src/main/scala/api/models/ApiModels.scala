@@ -2,16 +2,9 @@ package api.models
 
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.*
-import config.{
-  ConfigKey,
-  ConfigEntry,
-  ConfigListResponse,
-  ConfigUpdateRequest,
-  ConfigUpdateResponse,
-  AppConfig
-}
-import users_management.model.Profile
+import config.*
 import typingTest.tests.model.{DefaultContext, PersistedTypingTest, TypingTest}
+import users_management.model.Profile
 
 case class CreateProfileRequest(
     name: String,

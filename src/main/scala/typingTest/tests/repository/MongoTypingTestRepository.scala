@@ -1,17 +1,18 @@
 package typingTest.tests.repository
 
+import com.github.nscala_time.time.Imports.DateTime
 import com.mongodb.client.{MongoClients, MongoCollection, MongoDatabase}
 import org.bson.Document
 import org.bson.types.ObjectId
+import typingTest.dictionary.model.Dictionary
 import typingTest.tests.model.{
   CompletedInfo,
   DefaultContext,
   PersistedTypingTest,
   TypingTest
 }
-import typingTest.dictionary.model.Dictionary
 import users_management.repository.DatabaseInfos
-import com.github.nscala_time.time.Imports.DateTime
+
 import scala.jdk.CollectionConverters.*
 
 class MongoTypingTestRepository(dbInfos: DatabaseInfos)

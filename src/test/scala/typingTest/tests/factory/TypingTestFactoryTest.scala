@@ -4,14 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import typingTest.dictionary.loader.DictionaryLoader
 import typingTest.dictionary.model.Dictionary
-import typingTest.tests.model.{
-  CompletedInfo,
-  MergeOps,
-  ModifiersFacade,
-  NamedModifier,
-  TestMerger,
-  TypingTest
-}
+import typingTest.tests.model.*
 
 class MockDictionaryLoader extends DictionaryLoader:
   private val wordMap = Map(

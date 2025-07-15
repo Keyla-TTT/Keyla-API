@@ -4,15 +4,14 @@ import analytics.model.{Statistics, UserStatistics}
 
 trait StatisticsService:
 
-  def createUserStatistics(
-      userId: String,
-      wpm: Double,
-      accuracy: Double,
-      timestamp: Long = System.currentTimeMillis()
-  ): UserStatistics
+  def saveUserStatistics(
+      userStatistics: UserStatistics
+  ): Statistics
 
-  def getUserStatistics(userId: String): Option[UserStatistics]
+  def getUserStatistics(testId: String): Option[Statistics]
 
   def deleteAllUserStatistics(userId: String): Boolean
 
-  def listUserStatistics(userId: String): List[UserStatistics]
+  def listUserStatistics(userId: String): List[Statistics]
+
+  def cleanRepository(): Boolean

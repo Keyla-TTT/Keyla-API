@@ -1,15 +1,15 @@
 package users_management.service
 
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.testcontainers.containers.MongoDBContainer
 import users_management.factory.UserFactory
 import users_management.repository.{DatabaseInfos, MongoProfileRepository}
 
 import scala.compiletime.uninitialized
 
-class TestMemoryServiceWithMongoDockerRepository
+class TestServiceWithMongoRepository
     extends AnyFunSuite
     with BeforeAndAfter
     with BeforeAndAfterAll

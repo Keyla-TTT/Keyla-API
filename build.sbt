@@ -51,9 +51,9 @@ lazy val root = (project in file("."))
       "de.flapdoodle.embed" % "de.flapdoodle.embed.mongo" % "4.20.1" % Test,
       "org.typelevel" %% "cats-effect-testing-scalatest" % "1.5.0" % Test,
       "org.http4s" %% "http4s-blaze-client" % "0.23.17" % Test,
-      "com.softwaremill.sttp.client3" %% "core" % "3.9.8" % Test,
-      "com.softwaremill.sttp.client3" %% "cats" % "3.9.8" % Test,
-      "com.softwaremill.sttp.client3" %% "jsoniter" % "3.9.8" % Test,
+      "com.softwaremill.sttp.client3" %% "core" % "3.10.0" % Test,
+      "com.softwaremill.sttp.client3" %% "cats" % "3.10.0" % Test,
+      "com.softwaremill.sttp.client3" %% "jsoniter" % "3.10.1" % Test,
       "com.softwaremill.sttp.client3" %% "http4s-backend" % "3.9.8" % Test,
 
       // MongoDB driver

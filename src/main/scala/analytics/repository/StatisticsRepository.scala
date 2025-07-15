@@ -4,10 +4,12 @@ import analytics.model.Statistics
 
 trait StatisticsRepository:
 
-  def get(id: String): Option[Statistics]
+  def get(testId: String): Option[Statistics]
 
-  def create(statistics: Statistics): Statistics
+  def save(statistics: Statistics): Statistics
 
-  def deleteAll(id: String): Boolean
+  def deleteAll(userId: String): Boolean
 
-  def list(): List[Statistics]
+  def list(userId: String): List[Statistics]
+
+  def clean(): Boolean

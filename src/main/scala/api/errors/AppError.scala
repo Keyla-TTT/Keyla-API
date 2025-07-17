@@ -235,6 +235,13 @@ object AppError:
         StatusCode.InternalServerError
       )
 
+  case class StatisticsSavingFailed(reason: String)
+      extends AppError(
+        s"Failed to saving Statistics: $reason",
+        "STATISTICS_SAVING_ERROR",
+        StatusCode.InternalServerError
+      )
+
   // Service Unavailable (503)
   case class ServiceUnavailable(service: String, reason: String)
       extends AppError(

@@ -6,9 +6,7 @@ import cats.effect.IO
 import config.*
 
 class TypingTestController(
-    service: TypingTestService,
-    analyticsService: AnalyticsService,
-    configController: ConfigurationController
+    service: TypingTestService
 ):
 
   private def handleServiceResult[A](
@@ -68,37 +66,3 @@ class TypingTestController(
       language: String
   ): IO[Either[AppError, DictionariesResponse]] =
     handleServiceResult(service.getDictionariesByLanguage(language))
-
-  def saveStatistics(
-      request: SaveStatisticsRequest
-  ): IO[Either[AppError, StatisticsResponse]] =
-    handleServiceResult(analyticsService.saveStatistics(request))
-
-  def getAllProfileStatistics(
-      profileId: String
-  ): IO[Either[AppError, ProfileStatisticsListResponse]] =
-    handleServiceResult(analyticsService.getAllProfileStatistics(profileId))
-
-  // Configuration endpoints
-  def getAllConfigEntries(): IO[Either[AppError, ConfigListResponse]] =
-    configController.getAllConfigEntries()
-
-  def getConfigEntry(
-      section: String,
-      key: String
-  ): IO[Either[AppError, ConfigEntry]] =
-    configController.getConfigEntry(section, key)
-
-  def updateConfigEntry(
-      request: ConfigUpdateRequest
-  ): IO[Either[AppError, ConfigUpdateResponse]] =
-    configController.updateConfigEntry(request)
-
-  def getCurrentConfig(): IO[Either[AppError, AppConfig]] =
-    configController.getCurrentConfig()
-
-  def reloadConfig(): IO[Either[AppError, AppConfig]] =
-    configController.reloadConfig()
-
-  def resetConfigToDefaults(): IO[Either[AppError, AppConfig]] =
-    configController.resetToDefaults()

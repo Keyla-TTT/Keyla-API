@@ -347,3 +347,13 @@ object AppConfig:
       config.dictionary.basePath,
       config.dictionary.fileExtension
     )
+
+  def createAnalyticsRepository(config: AppConfig): StatisticsRepository =
+    if config.database.useMongoDb then
+      val dbInfos = DatabaseInfos(
+        collectionName = "statistics",
+        mongoUri = config.database.mongoUri,
+        databaseName = config.database.databaseName
+      )
+      MongoStatisticsRepository(dbInfos)
+    else InMemoryStatisticsRepository()

@@ -1,12 +1,20 @@
 package api.routes
 
-import api.controllers.TypingTestController
+import api.controllers.{
+  AnalyticsController,
+  ConfigurationController,
+  TypingTestController
+}
 import api.endpoints.ApiEndpoints
 import api.models.{AppError, ErrorResponse}
 import cats.effect.IO
 import sttp.tapir.server.ServerEndpoint
 
-class ApiRoutes(controller: TypingTestController):
+class ApiRoutes(
+    configController: ConfigurationController,
+    controller: TypingTestController,
+    analyticsController: AnalyticsController
+):
 
   private def handleControllerResult[A](
       result: IO[Either[AppError, A]]
@@ -48,28 +56,30 @@ class ApiRoutes(controller: TypingTestController):
       handleControllerResult(controller.getDictionariesByLanguage(language))
     },
     ApiEndpoints.saveStatistics.serverLogic { request =>
-      handleControllerResult(controller.saveStatistics(request))
+      handleControllerResult(analyticsController.saveStatistics(request))
     },
     ApiEndpoints.getAllProfileStatistics.serverLogic { profileId =>
-      handleControllerResult(controller.getAllProfileStatistics(profileId))
+      handleControllerResult(
+        AnalyticsController.getAllProfileStatistics(profileId)
+      )
     },
     // Configuration routes
     ApiEndpoints.getAllConfigEntries.serverLogic { _ =>
-      handleControllerResult(controller.getAllConfigEntries())
+      handleControllerResult(configController.getAllConfigEntries())
     },
     ApiEndpoints.getConfigEntry.serverLogic { case (section, key) =>
-      handleControllerResult(controller.getConfigEntry(section, key))
+      handleControllerResult(configController.getConfigEntry(section, key))
     },
     ApiEndpoints.updateConfigEntry.serverLogic { request =>
-      handleControllerResult(controller.updateConfigEntry(request))
+      handleControllerResult(configController.updateConfigEntry(request))
     },
     ApiEndpoints.getCurrentConfig.serverLogic { _ =>
-      handleControllerResult(controller.getCurrentConfig())
+      handleControllerResult(configController.getCurrentConfig())
     },
     ApiEndpoints.reloadConfig.serverLogic { _ =>
-      handleControllerResult(controller.reloadConfig())
+      handleControllerResult(configController.reloadConfig())
     },
     ApiEndpoints.resetConfigToDefaults.serverLogic { _ =>
-      handleControllerResult(controller.resetConfigToDefaults())
+      handleControllerResult(configController.resetToDefaults())
     }
   )

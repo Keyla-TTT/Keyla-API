@@ -225,35 +225,32 @@ object ApiEndpoints:
       )
 
   val saveStatistics: PublicEndpoint[
-    String,
+    SaveStatisticsRequest,
     ErrorResponse,
-    ProfileListResponse,
+    StatisticsResponse,
     Any
   ] =
     baseEndpoint.post
       .in(
-        "api" / "profiles" / path[String]("profileId").description(
-          "Profile identifier"
-        ) / "statistics"
+        "api" / "stats"
       )
-      .in(jsonBody[ProfileListResponse].description("Profile statistics data"))
+      .in(jsonBody[SaveStatisticsRequest].description("Test statistics data"))
       .out(
-        jsonBody[ProfileListResponse].description(
-          "Successfully saved profile statistics"
+        jsonBody[StatisticsResponse].description(
+          "Successfully saved test statistics"
         )
       )
-      .summary("Save profile statistics")
+      .summary("Save test statistics")
       .description(
-        "Saves the provided statistics for a specific user profile"
+        "Saves the provided test's statistics for a specific user profile"
       )
 
-  val getAllProfileStatistics
-      : PublicEndpoint[String, ErrorResponse, ProfileListResponse, Any] =
+  val getAllProfileStatistics =
     baseEndpoint.get
       .in(
-        "api" / "profiles" / path[String]("profileId").description(
-          "Profile identifier"
-        ) / "statistics"
+        "api" / "stats" / path[String]("testId").description(
+          "Test identifier"
+        )
       )
       .out(
         jsonBody[ProfileListResponse].description(
@@ -429,24 +426,7 @@ object ApiEndpoints:
   /** Complete list of all available API endpoints. Used by the server to
     * register all endpoint handlers.
     */
-  val getAllEndpoints: List[Endpoint[
-    Unit,
-    ? >: CreateProfileRequest & ConfigUpdateRequest &
-      (TestRequest & (String, String)) &
-      (String & (String, TestResultsRequest) & Unit) <: CreateProfileRequest |
-      Unit | (String | ConfigUpdateRequest) |
-      (TestRequest | ((String, String) | (String, TestResultsRequest))),
-    ErrorResponse,
-    ? >: ProfileResponse & ProfileListResponse & ConfigUpdateResponse &
-      (LastTestResponse & LanguagesResponse) &
-      (ConfigListResponse & ConfigEntry &
-      (TestListResponse & TestResponse &
-      (DictionariesResponse & AppConfig))) <: ProfileResponse |
-      ProfileListResponse | (DictionariesResponse | ConfigUpdateResponse) |
-      (TestListResponse | LastTestResponse | (LanguagesResponse | AppConfig) |
-      (TestResponse | (ConfigListResponse | ConfigEntry))),
-    Any
-  ]] = List(
+  val getAllEndpoints = List(
     createProfile,
     getAllProfiles,
     requestTest,

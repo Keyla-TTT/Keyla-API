@@ -31,7 +31,7 @@ case class AnalyticsServiceImpl(repository: StatisticsRepository)
     for
       newStatistics <- AppResult.pure(
         UserStatistics(
-          testId = None,
+          testId = request.testId,
           userId = request.profileId,
           wpm = request.wpm,
           accuracy = request.accuracy,
@@ -41,17 +41,26 @@ case class AnalyticsServiceImpl(repository: StatisticsRepository)
       )
       savedStatistics <- AppResult.attemptBlocking(
         IO.blocking(repository.save(newStatistics))
-      )(error => StatisticsSavingError(error.getMessage))
-      response <- AppResult.pure(
+      )(error => StatisticsSavingFailed(error.getMessage))
+      response: StatisticsResponse <- AppResult.pure(
         ApiModels.statisticsToResponse(savedStatistics)
       )
     yield response
 
-    def getAllProfileStatistics(
-        profileId: String
-    ): AppResult[ProfileStatisticsListResponse] =
-      AppResult
-        .attemptBlocking(
-          IO.blocking(repository.list(profileId))
-        )(error => DatabaseError("statistics lookup", error.getMessage))
-        .map(ApiModels.profileStatisticsListToResponse)
+  def getAllProfileStatistics(
+      profileId: String
+  ): AppResult[ProfileStatisticsListResponse] =
+    AppResult
+      .attemptBlocking(
+        IO.blocking(repository.list(profileId))
+      )(error => DatabaseError("profiles lookup", error.getMessage))
+      .flatMap { statisticsList =>
+        if statisticsList.isEmpty then
+          AppResult.pure(ProfileStatisticsListResponse(profileId, List.empty))
+        else
+          val response = ProfileStatisticsListResponse(
+            profileId,
+            statisticsList.map(ApiModels.statisticsToResponse)
+          )
+          AppResult.pure(response)
+      }

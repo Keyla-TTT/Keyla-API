@@ -1,6 +1,10 @@
-import api.controllers.{ConfigurationController, TypingTestController}
+import api.controllers.{
+  AnalyticsController,
+  ConfigurationController,
+  TypingTestController
+}
 import api.server.ApiServer
-import api.services.TypingTestService
+import api.services.{AnalyticsService, TypingTestService}
 import cats.effect.{ExitCode, IO, IOApp}
 import config.{AppConfig, ConfigurationService}
 
@@ -13,6 +17,7 @@ object Main extends IOApp:
       profileRepository = AppConfig.createProfileRepository(config)
       dictionaryRepository = AppConfig.createDictionaryRepository(config)
       typingTestRepository = AppConfig.createTypingTestRepository(config)
+      analyticsRepository = AppConfig.createAnalyticsRepository(config)
 
       configService <- ConfigurationService.create(
         config,
@@ -26,8 +31,11 @@ object Main extends IOApp:
         dictionaryRepository,
         typingTestRepository
       )
+      analyticsService = AnalyticsService(analyticsRepository)
+
       configController = ConfigurationController(configService)
-      controller = TypingTestController(service, configController)
+      controller = TypingTestController(service)
+      analyticsController = AnalyticsController(analyticsService)
       server = ApiServer(controller)
 
       _ <- IO.println(

@@ -93,6 +93,7 @@ case class LanguagesResponse(
 )
 
 case class SaveStatisticsRequest(
+    testId: String,
     profileId: String,
     wpm: Double,
     accuracy: Double,
@@ -223,13 +224,14 @@ object ApiModels:
       profileId: String,
       statistics: List[Statistics]
   ): profileStatisticsResponse =
-    ProfileListResponse(
+    ProfileStatisticsListResponse(
       profileId = profileId,
       statistics = statistics.map(stat => statisticsToResponse(stat))
     )
 
   def statisticsToResponse(statistics: Statistics): statisticsResponse =
     statisticsResponse(
+      testId = statistics.testId,
       profileId = statistics.userId,
       wpm = statistics.wpm,
       accuracy = statistics.accuracy,

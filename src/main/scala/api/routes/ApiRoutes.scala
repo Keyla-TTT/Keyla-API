@@ -47,6 +47,12 @@ class ApiRoutes(controller: TypingTestController):
     ApiEndpoints.getDictionariesByLanguage.serverLogic { language =>
       handleControllerResult(controller.getDictionariesByLanguage(language))
     },
+    ApiEndpoints.saveStatistics.serverLogic { request =>
+      handleControllerResult(controller.saveStatistics(request))
+    },
+    ApiEndpoints.getAllProfileStatistics.serverLogic { profileId =>
+      handleControllerResult(controller.getAllProfileStatistics(profileId))
+    },
     // Configuration routes
     ApiEndpoints.getAllConfigEntries.serverLogic { _ =>
       handleControllerResult(controller.getAllConfigEntries())

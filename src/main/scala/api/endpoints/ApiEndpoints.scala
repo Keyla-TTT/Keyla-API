@@ -224,6 +224,47 @@ object ApiEndpoints:
         "Retrieves all available dictionaries for a specific language"
       )
 
+  val saveStatistics: PublicEndpoint[
+    String,
+    ErrorResponse,
+    ProfileListResponse,
+    Any
+  ] =
+    baseEndpoint.post
+      .in(
+        "api" / "profiles" / path[String]("profileId").description(
+          "Profile identifier"
+        ) / "statistics"
+      )
+      .in(jsonBody[ProfileListResponse].description("Profile statistics data"))
+      .out(
+        jsonBody[ProfileListResponse].description(
+          "Successfully saved profile statistics"
+        )
+      )
+      .summary("Save profile statistics")
+      .description(
+        "Saves the provided statistics for a specific user profile"
+      )
+
+  val getAllProfileStatistics
+      : PublicEndpoint[String, ErrorResponse, ProfileListResponse, Any] =
+    baseEndpoint.get
+      .in(
+        "api" / "profiles" / path[String]("profileId").description(
+          "Profile identifier"
+        ) / "statistics"
+      )
+      .out(
+        jsonBody[ProfileListResponse].description(
+          "List of all profile statistics"
+        )
+      )
+      .summary("Get all profile statistics")
+      .description(
+        "Retrieves all available statistics for a specific user profile"
+      )
+
   // Configuration endpoints - Git-like configuration management
 
   /** Lists all available configuration entries with their metadata. Equivalent
@@ -417,6 +458,8 @@ object ApiEndpoints:
     getAllDictionaries,
     getLanguages,
     getDictionariesByLanguage,
+    saveStatistics,
+    getAllProfileStatistics,
     getAllConfigEntries,
     getConfigEntry,
     updateConfigEntry,

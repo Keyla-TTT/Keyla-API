@@ -1,12 +1,13 @@
 package api.controllers
 
 import api.models.*
-import api.services.TypingTestService
+import api.services.{AnalyticsService, TypingTestService}
 import cats.effect.IO
 import config.*
 
 class TypingTestController(
     service: TypingTestService,
+    analyticsService: AnalyticsService,
     configController: ConfigurationController
 ):
 
@@ -67,6 +68,16 @@ class TypingTestController(
       language: String
   ): IO[Either[AppError, DictionariesResponse]] =
     handleServiceResult(service.getDictionariesByLanguage(language))
+
+  def saveStatistics(
+      request: SaveStatisticsRequest
+  ): IO[Either[AppError, StatisticsResponse]] =
+    handleServiceResult(analyticsService.saveStatistics(request))
+
+  def getAllProfileStatistics(
+      profileId: String
+  ): IO[Either[AppError, ProfileStatisticsListResponse]] =
+    handleServiceResult(analyticsService.getAllProfileStatistics(profileId))
 
   // Configuration endpoints
   def getAllConfigEntries(): IO[Either[AppError, ConfigListResponse]] =

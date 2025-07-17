@@ -60,7 +60,7 @@ class ApiRoutes(
     },
     ApiEndpoints.getAllProfileStatistics.serverLogic { profileId =>
       handleControllerResult(
-        AnalyticsController.getAllProfileStatistics(profileId)
+        analyticsController.getAllProfileStatistics(profileId)
       )
     },
     // Configuration routes

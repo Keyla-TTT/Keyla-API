@@ -223,14 +223,14 @@ object ApiModels:
   def profileStatisticsListToResponse(
       profileId: String,
       statistics: List[Statistics]
-  ): profileStatisticsResponse =
+  ): ProfileStatisticsListResponse =
     ProfileStatisticsListResponse(
       profileId = profileId,
       statistics = statistics.map(stat => statisticsToResponse(stat))
     )
 
-  def statisticsToResponse(statistics: Statistics): statisticsResponse =
-    statisticsResponse(
+  def statisticsToResponse(statistics: Statistics): StatisticsResponse =
+    StatisticsResponse(
       testId = statistics.testId,
       profileId = statistics.userId,
       wpm = statistics.wpm,

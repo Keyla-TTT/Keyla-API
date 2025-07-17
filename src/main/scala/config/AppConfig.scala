@@ -1,5 +1,10 @@
 package config
 
+import analytics.repository.{
+  InMemoryStatisticsRepository,
+  MongoStatisticsRepository,
+  StatisticsRepository
+}
 import cats.effect.IO
 import cats.effect.std.Console
 import com.github.plokhotnyuk.jsoniter_scala.core.*
@@ -350,7 +355,7 @@ object AppConfig:
 
   def createAnalyticsRepository(config: AppConfig): StatisticsRepository =
     if config.database.useMongoDb then
-      val dbInfos = DatabaseInfos(
+      val dbInfos = analytics.repository.DatabaseInfos(
         collectionName = "statistics",
         mongoUri = config.database.mongoUri,
         databaseName = config.database.databaseName

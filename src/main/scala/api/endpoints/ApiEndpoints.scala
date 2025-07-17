@@ -224,17 +224,16 @@ object ApiEndpoints:
         "Retrieves all available dictionaries for a specific language"
       )
 
-  val saveStatistics: PublicEndpoint[
-    SaveStatisticsRequest,
-    ErrorResponse,
-    StatisticsResponse,
-    Any
-  ] =
+  val saveStatistics =
     baseEndpoint.post
       .in(
         "api" / "stats"
       )
-      .in(jsonBody[SaveStatisticsRequest].description("Test statistics data"))
+      .in(
+        jsonBody[SaveStatisticsRequest].description(
+          "Statistics data to save"
+        )
+      )
       .out(
         jsonBody[StatisticsResponse].description(
           "Successfully saved test statistics"
@@ -253,7 +252,7 @@ object ApiEndpoints:
         )
       )
       .out(
-        jsonBody[ProfileListResponse].description(
+        jsonBody[ProfileStatisticsListResponse].description(
           "List of all profile statistics"
         )
       )

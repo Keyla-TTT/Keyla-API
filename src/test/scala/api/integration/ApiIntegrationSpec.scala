@@ -1,10 +1,15 @@
 package api.integration
 
-import api.controllers.{ConfigurationController, TypingTestController}
+import analytics.repository.InMemoryStatisticsRepository
+import api.controllers.{
+  AnalyticsController,
+  ConfigurationController,
+  TypingTestController
+}
 import api.models.*
 import api.models.ApiModels.given
 import api.server.ApiServer
-import api.services.TypingTestService
+import api.services.{AnalyticsService, TypingTestService}
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.plokhotnyuk.jsoniter_scala.core.*
@@ -40,6 +45,7 @@ class ApiIntegrationSpec
   private var profileRepository: InMemoryProfileRepository = uninitialized
   private var typingTestRepository: InMemoryTypingTestRepository = uninitialized
   private var dictionaryRepository: DictionaryRepository = uninitialized
+  private var statisticsRepository: InMemoryStatisticsRepository = uninitialized
   private var tempDir: File = uninitialized
   private var testPort: Int = uninitialized
   private var baseUri: Uri = uninitialized
@@ -47,6 +53,7 @@ class ApiIntegrationSpec
   override def beforeEach(): Unit =
     profileRepository = InMemoryProfileRepository()
     typingTestRepository = InMemoryTypingTestRepository()
+    statisticsRepository = InMemoryStatisticsRepository()
 
     tempDir = Files.createTempDirectory("test-dicts").toFile
     createTestDictionaries()
@@ -83,11 +90,12 @@ class ApiIntegrationSpec
     )
 
   private def withServer[T](test: SttpBackend[IO, Any] => IO[T]): IO[T] =
-    val service = TypingTestService(
+    val typingTestService = TypingTestService(
       profileRepository,
       dictionaryRepository,
       typingTestRepository
     )
+    val analyticsService = AnalyticsService(statisticsRepository)
 
     // Create default configuration for testing
     val testConfig = AppConfig(
@@ -107,8 +115,13 @@ class ApiIntegrationSpec
 
     configServiceIO.flatMap { configService =>
       val configController = ConfigurationController(configService)
-      val controller = TypingTestController(service, configController)
-      val server = ApiServer(controller)
+      val typingTestController = TypingTestController(typingTestService)
+      val analyticsController = AnalyticsController(analyticsService)
+      val server = ApiServer(
+        configController,
+        typingTestController,
+        analyticsController
+      )
 
       server.resource(testPort, "localhost").use { _ =>
         BlazeClientBuilder[IO].resource.use { client =>

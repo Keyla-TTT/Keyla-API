@@ -1,12 +1,16 @@
 package config
 
-import api.controllers.{ConfigurationController, TypingTestController}
+import analytics.repository.InMemoryStatisticsRepository
+import api.controllers.{
+  AnalyticsController,
+  ConfigurationController,
+  TypingTestController
+}
 import api.models.ApiModels.given
 import api.server.ApiServer
-import api.services.TypingTestService
+import api.services.{AnalyticsService, TypingTestService}
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
-import com.github.plokhotnyuk.jsoniter_scala.core.*
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
@@ -20,7 +24,6 @@ import typingTest.tests.repository.InMemoryTypingTestRepository
 import users_management.repository.InMemoryProfileRepository
 
 import java.io.File
-import java.nio.file.{Files, Paths}
 
 class ConfigurationIntegrationSpec
     extends AsyncWordSpec
@@ -81,6 +84,7 @@ class ConfigurationIntegrationSpec
         )
       )
       typingTestRepository <- IO.pure(InMemoryTypingTestRepository())
+      analyticsRepository <- IO.pure(InMemoryStatisticsRepository())
 
       // Create configuration service
       configService <- ConfigurationService.create(
@@ -91,16 +95,27 @@ class ConfigurationIntegrationSpec
       )
 
       // Create controllers and server
-      service <- IO.pure(
+      typingTestService <- IO.pure(
         TypingTestService(
           profileRepository,
           dictionaryRepository,
           typingTestRepository
         )
       )
+
+      analyticsService <- IO.pure(
+        AnalyticsService(analyticsRepository)
+      )
       configController <- IO.pure(ConfigurationController(configService))
-      controller <- IO.pure(TypingTestController(service, configController))
-      server <- IO.pure(ApiServer(controller))
+      typingTestController <- IO.pure(TypingTestController(typingTestService))
+      analyticsController <- IO.pure(AnalyticsController(analyticsService))
+      server <- IO.pure(
+        ApiServer(
+          configController,
+          typingTestController,
+          analyticsController
+        )
+      )
     yield server
 
   "Configuration API" should {

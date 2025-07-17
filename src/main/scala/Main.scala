@@ -34,9 +34,13 @@ object Main extends IOApp:
       analyticsService = AnalyticsService(analyticsRepository)
 
       configController = ConfigurationController(configService)
-      controller = TypingTestController(service)
+      typingTestController = TypingTestController(service)
       analyticsController = AnalyticsController(analyticsService)
-      server = ApiServer(controller)
+      server = ApiServer(
+        configController,
+        typingTestController,
+        analyticsController
+      )
 
       _ <- IO.println(
         s"Starting server on ${config.server.host}:${config.server.port}"

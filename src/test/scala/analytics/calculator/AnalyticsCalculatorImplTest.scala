@@ -27,11 +27,11 @@ class AnalyticsCalculatorImplTest extends AnyFunSuite with Matchers:
 
   test("analyzeUser should correctly calculate analytics for single test") {
     val stats = UserStatistics(
-      userId = "user1",
       testId = "test1",
+      userId = "user1",
       wpm = 50.0,
       accuracy = 95.0,
-      errors = List("error1", "error2"),
+      errors = List(1, 2),
       timestamp = 1000L
     )
 
@@ -53,13 +53,13 @@ class AnalyticsCalculatorImplTest extends AnyFunSuite with Matchers:
 
   test("analyzeUser should correctly calculate analytics for multiple tests") {
     val stats1 =
-      UserStatistics("user1", "test1", 40.0, 90.0, List("error1"), 1000L)
+      UserStatistics("test1", "user1", 40.0, 90.0, List(1), 1000L)
     val stats2 = UserStatistics(
-      "user1",
       "test2",
+      "user1",
       60.0,
       95.0,
-      List("error1", "error2"),
+      List(1, 2),
       2000L
     )
 

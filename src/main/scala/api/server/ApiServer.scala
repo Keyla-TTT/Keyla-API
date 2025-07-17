@@ -1,11 +1,14 @@
 package api.server
 
-import api.controllers.TypingTestController
+import api.controllers.{
+  AnalyticsController,
+  ConfigurationController,
+  TypingTestController
+}
 import api.endpoints.ApiEndpoints
 import api.routes.ApiRoutes
 import cats.effect.{ExitCode, IO, Resource}
 import cats.syntax.all.*
-import com.comcast.ip4s.*
 import org.http4s.HttpApp
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.Router
@@ -106,7 +109,11 @@ import scala.concurrent.ExecutionContext
   * }
   *   }}}
   */
-class ApiServer(controller: TypingTestController):
+class ApiServer(
+    configurationController: ConfigurationController,
+    typingTestController: TypingTestController,
+    analyticsController: AnalyticsController
+):
 
   /** Logger instance for structured logging throughout the server lifecycle.
     * Uses SLF4J backend for integration with standard logging frameworks.
@@ -116,7 +123,11 @@ class ApiServer(controller: TypingTestController):
   /** API routes handler that interprets Tapir endpoints into Http4s routes.
     * Connects the controller business logic to HTTP request/response handling.
     */
-  private val apiRoutes = ApiRoutes(controller)
+  private val apiRoutes = ApiRoutes(
+    configurationController,
+    typingTestController,
+    analyticsController
+  )
 
   /** Swagger/OpenAPI documentation endpoints generated from the API
     * definitions. Provides interactive API documentation and machine-readable
@@ -275,6 +286,13 @@ object ApiServer:
     * server.serve.unsafeRunSync()
     *   }}}
     */
-  def apply(controller: TypingTestController): ApiServer = new ApiServer(
-    controller
-  )
+  def apply(
+      configurationController: ConfigurationController,
+      typingTestController: TypingTestController,
+      analyticsController: AnalyticsController
+  ): ApiServer =
+    new ApiServer(
+      configurationController,
+      typingTestController,
+      analyticsController
+    )

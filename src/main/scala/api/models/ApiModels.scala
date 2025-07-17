@@ -130,6 +130,12 @@ object ApiModels:
   given JsonValueCodec[LanguageInfo] = JsonCodecMaker.make
   given JsonValueCodec[LanguagesResponse] = JsonCodecMaker.make
 
+  given JsonValueCodec[SaveStatisticsRequest] = JsonCodecMaker.make
+
+  given JsonValueCodec[StatisticsResponse] = JsonCodecMaker.make
+
+  given JsonValueCodec[ProfileStatisticsListResponse] = JsonCodecMaker.make
+
   // Configuration codecs
   given JsonValueCodec[ConfigKey] = JsonCodecMaker.make
   given JsonValueCodec[ConfigEntry] = JsonCodecMaker.make

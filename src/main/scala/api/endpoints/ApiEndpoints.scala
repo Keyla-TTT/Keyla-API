@@ -224,7 +224,7 @@ object ApiEndpoints:
         "Retrieves all available dictionaries for a specific language"
       )
 
-  val saveStatistics =
+  val saveStatistics: Endpoint[Unit, SaveStatisticsRequest, ErrorResponse, StatisticsResponse, Any] =
     baseEndpoint.post
       .in(
         "api" / "stats"
@@ -244,7 +244,7 @@ object ApiEndpoints:
         "Saves the provided test's statistics for a specific user profile"
       )
 
-  val getAllProfileStatistics =
+  val getAllProfileStatistics: Endpoint[Unit, String, ErrorResponse, ProfileStatisticsListResponse, Any] =
     baseEndpoint.get
       .in(
         "api" / "stats" / path[String]("testId").description(
@@ -286,26 +286,22 @@ object ApiEndpoints:
         "Retrieves all available configuration entries with their current values and metadata. Similar to 'git config --list' but includes descriptions, data types, and default values for each entry."
       )
 
-  /** Gets a specific configuration entry by section and key. Equivalent to
-    * `git config <section>.<key>`.
+  /** Gets a specific configuration entry by dot notation key. Equivalent to
+    * `git config <section>.<key>` but using simplified dot notation.
     *
-    * GET /api/config/{section}/{key}
+    * GET /api/config/{key}
     *
-    * @param section
-    *   Configuration section (e.g., "server", "database", "dictionary")
     * @param key
-    *   Configuration key within the section (e.g., "port", "host")
+    *   Configuration key in dot notation format (e.g., "server.port",
+    *   "database.useMongodb")
     * @return
     *   ConfigEntry with the current value and metadata
     */
-  val getConfigEntry
-      : PublicEndpoint[(String, String), ErrorResponse, ConfigEntry, Any] =
+  val getConfigEntry: PublicEndpoint[String, ErrorResponse, ConfigEntry, Any] =
     baseEndpoint.get
       .in(
-        "api" / "config" / path[String]("section").description(
-          "Configuration section (server, database, dictionary)"
-        ) / path[String]("key").description(
-          "Configuration key within the section"
+        "api" / "config" / path[String]("key").description(
+          "Configuration key in dot notation format (e.g., server.port, database.useMongodb)"
         )
       )
       .out(
@@ -315,7 +311,7 @@ object ApiEndpoints:
       )
       .summary("Get a specific configuration entry")
       .description(
-        "Retrieves a specific configuration entry by section and key. Similar to 'git config <section>.<key>' but returns additional metadata."
+        "Retrieves a specific configuration entry by dot notation key. Similar to 'git config <section>.<key>' but uses simplified dot notation format."
       )
 
   /** Updates a configuration entry with a new value. Equivalent to
@@ -330,13 +326,14 @@ object ApiEndpoints:
     *   - Server restart notifications for host/port changes
     *
     * @param request
-    *   ConfigUpdateRequest containing the key and new value
+    *   SimpleConfigUpdateRequest containing the key in dot notation and new
+    *   value
     * @return
     *   ConfigUpdateResponse with success status, message, and updated
     *   configuration
     */
   val updateConfigEntry: PublicEndpoint[
-    ConfigUpdateRequest,
+    SimpleConfigUpdateRequest,
     ErrorResponse,
     ConfigUpdateResponse,
     Any
@@ -344,8 +341,8 @@ object ApiEndpoints:
     baseEndpoint.put
       .in("api" / "config")
       .in(
-        jsonBody[ConfigUpdateRequest].description(
-          "Configuration update request with section, key, and new value"
+        jsonBody[SimpleConfigUpdateRequest].description(
+          "Simplified configuration update request with key in dot notation and new value"
         )
       )
       .out(
@@ -355,7 +352,7 @@ object ApiEndpoints:
       )
       .summary("Update a configuration entry")
       .description(
-        "Updates a configuration entry and automatically handles persistence, validation, and component reinitialization. Similar to 'git config <section>.<key> <value>' with automatic side-effect management."
+        "Updates a configuration entry using simplified dot notation keys and automatically handles persistence, validation, and component reinitialization."
       )
 
   /** Gets the complete current configuration.
@@ -425,7 +422,7 @@ object ApiEndpoints:
   /** Complete list of all available API endpoints. Used by the server to
     * register all endpoint handlers.
     */
-  val getAllEndpoints = List(
+  val getAllEndpoints: List[Endpoint[Unit, ? >: TestRequest & SaveStatisticsRequest & ((String, TestResultsRequest) & SimpleConfigUpdateRequest) & (CreateProfileRequest & (String & Unit)) <: TestRequest | String | SaveStatisticsRequest | (Unit | SimpleConfigUpdateRequest | ((String, TestResultsRequest) | CreateProfileRequest)), ErrorResponse, ? >: StatisticsResponse & ProfileStatisticsListResponse & (TestResponse & ConfigUpdateResponse) & (TestListResponse & LastTestResponse & (LanguagesResponse & ConfigEntry)) & (ProfileResponse & ProfileListResponse & (DictionariesResponse & ConfigListResponse & AppConfig)) <: TestResponse | (StatisticsResponse | ProfileStatisticsListResponse) | (TestListResponse | AppConfig | (DictionariesResponse | ConfigUpdateResponse)) | (LastTestResponse | (LanguagesResponse | ConfigEntry) | (ProfileResponse | ProfileListResponse | ConfigListResponse)), Any]] = List(
     createProfile,
     getAllProfiles,
     requestTest,

@@ -1,66 +1,61 @@
 package api.services
 
-import analytics.model.{Statistics, UserStatistics, UserStatisticsBuilder}
+import analytics.calculator.AnalyticsCalculator
+import analytics.model.UserStatistics
 import analytics.repository.StatisticsRepository
-import analytics.service.StatisticsServiceImpl
 import api.models.*
 import api.models.AppError.*
 import cats.effect.IO
 
 trait AnalyticsService:
 
-  def saveStatistics(
-      request: SaveStatisticsRequest
-  ): AppResult[StatisticsResponse]
-
-  def getAllProfileStatistics(
-      profileId: String
-  ): AppResult[ProfileStatisticsListResponse]
+  def getUserAnalytics(userId: String): AppResult[AnalyticsResponse]
 
 object AnalyticsService:
 
-  def apply(repository: StatisticsRepository): AnalyticsService =
-    AnalyticsServiceImpl(repository)
+  def apply(
+      repository: StatisticsRepository,
+      calculator: AnalyticsCalculator
+  ): AnalyticsService =
+    AnalyticsServiceImpl(repository, calculator)
 
-case class AnalyticsServiceImpl(repository: StatisticsRepository)
-    extends AnalyticsService:
+case class AnalyticsServiceImpl(
+    repository: StatisticsRepository,
+    calculator: AnalyticsCalculator
+) extends AnalyticsService:
 
-  def saveStatistics(
-      request: SaveStatisticsRequest
-  ): AppResult[StatisticsResponse] =
+  def getUserAnalytics(userId: String): AppResult[AnalyticsResponse] =
     for
-      newStatistics <- AppResult.pure(
-        UserStatistics(
-          testId = request.testId,
-          userId = request.profileId,
-          wpm = request.wpm,
-          accuracy = request.accuracy,
-          errors = request.errors,
-          timestamp = System.currentTimeMillis()
+      statisticsList <- AppResult.attemptBlocking(
+        IO.blocking(repository.list(userId))
+      )(error => DatabaseError("statistics lookup", error.getMessage))
+      userStatistics <- AppResult.pure(
+        statisticsList.map(stat =>
+          UserStatistics(
+            testId = stat.testId,
+            userId = stat.userId,
+            wpm = stat.wpm,
+            accuracy = stat.accuracy,
+            errors = stat.errors,
+            timestamp = stat.timestamp
+          )
         )
       )
-      savedStatistics <- AppResult.attemptBlocking(
-        IO.blocking(repository.save(newStatistics))
-      )(error => StatisticsSavingFailed(error.getMessage))
-      response: StatisticsResponse <- AppResult.pure(
-        ApiModels.statisticsToResponse(savedStatistics)
+      analytics <- AppResult.pure(calculator.analyzeUser(userStatistics))
+      response <- AppResult.pure(
+        AnalyticsResponse(
+          userId = analytics.userId,
+          totalTests = analytics.totalTests,
+          averageWpm = analytics.averageWpm,
+          averageAccuracy = analytics.averageAccuracy,
+          bestWpm = analytics.bestWpm,
+          worstWpm = analytics.worstWpm,
+          bestAccuracy = analytics.bestAccuracy,
+          worstAccuracy = analytics.worstAccuracy,
+          wpmImprovement = analytics.wpmImprovement,
+          accuracyImprovement = analytics.accuracyImprovement,
+          totalErrors = analytics.totalErrors,
+          averageErrorsPerTest = analytics.averageErrorsPerTest
+        )
       )
     yield response
-
-  def getAllProfileStatistics(
-      profileId: String
-  ): AppResult[ProfileStatisticsListResponse] =
-    AppResult
-      .attemptBlocking(
-        IO.blocking(repository.list(profileId))
-      )(error => DatabaseError("profiles lookup", error.getMessage))
-      .flatMap { statisticsList =>
-        if statisticsList.isEmpty then
-          AppResult.pure(ProfileStatisticsListResponse(profileId, List.empty))
-        else
-          val response = ProfileStatisticsListResponse(
-            profileId,
-            statisticsList.map(ApiModels.statisticsToResponse)
-          )
-          AppResult.pure(response)
-      }

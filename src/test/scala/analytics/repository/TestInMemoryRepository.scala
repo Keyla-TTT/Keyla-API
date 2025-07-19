@@ -15,7 +15,7 @@ class TestInMemoryRepository
 
   private val testStats = UserStatistics(
     userId = "user1",
-    testId = "", // testId sarà generato dal repository
+    testId = "test-123",
     wpm = 10.0,
     accuracy = 95.0,
     errors = List[Int](1, 2, 3),
@@ -42,7 +42,7 @@ class TestInMemoryRepository
 
   it should "list all statistics for a user" in {
     val saved1 = repo.save(testStats)
-    val saved2 = repo.save(testStats) // nuovo test con nuovo ID
+    val saved2 = repo.save(testStats.copy(testId = "test-456"))
 
     val userStats = repo.list(testStats.userId)
     userStats should contain allOf (saved1, saved2)
@@ -55,7 +55,7 @@ class TestInMemoryRepository
 
   it should "delete all statistics for a user" in {
     val saved1 = repo.save(testStats)
-    val saved2 = repo.save(testStats)
+    val saved2 = repo.save(testStats.copy(testId = "test-789"))
 
     repo.deleteAll(testStats.userId) shouldBe true
     repo.list(testStats.userId) shouldBe empty
@@ -67,7 +67,7 @@ class TestInMemoryRepository
 
   it should "handle multiple users independently" in {
     val user1Stats = testStats
-    val user2Stats = testStats.copy(userId = "user2")
+    val user2Stats = testStats.copy(userId = "user2", testId = "test-456")
 
     val saved1 = repo.save(user1Stats)
     val saved2 = repo.save(user2Stats)

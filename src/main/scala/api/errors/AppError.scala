@@ -242,6 +242,13 @@ object AppError:
         StatusCode.InternalServerError
       )
 
+  case class AnalyticsCalculationFailed(reason: String)
+      extends AppError(
+        s"Failed to calculate analytics: $reason",
+        "ANALYTICS_CALCULATION_ERROR",
+        StatusCode.InternalServerError
+      )
+
   // Service Unavailable (503)
   case class ServiceUnavailable(service: String, reason: String)
       extends AppError(

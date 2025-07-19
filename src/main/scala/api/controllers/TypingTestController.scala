@@ -1,7 +1,7 @@
 package api.controllers
 
 import api.models.*
-import api.services.{AnalyticsService, TypingTestService}
+import api.services.TypingTestService
 import cats.effect.IO
 import config.*
 

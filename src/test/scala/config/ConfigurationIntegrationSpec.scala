@@ -6,11 +6,14 @@ import api.controllers.{
   ConfigurationController,
   TypingTestController
 }
+import api.models.*
 import api.models.ApiModels.given
 import api.server.ApiServer
-import api.services.{AnalyticsService, TypingTestService}
+import api.services.{AnalyticsService, StatisticsService, TypingTestService}
+import analytics.calculator.AnalyticsCalculatorImpl
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
+import config.{AppConfig, ConfigurationService}
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
@@ -32,27 +35,27 @@ class ConfigurationIntegrationSpec
     with BeforeAndAfterEach:
 
   private val testConfigPath = "test-keyla-config.json"
-  private val testPort = 9999
   private val testHost = "localhost"
-  private val baseUri = Uri
-    .parse(s"http://$testHost:$testPort")
-    .getOrElse(throw new RuntimeException("Invalid URI"))
+  private var testPort = 9999
 
   override def beforeEach(): Unit =
     super.beforeEach()
-    // Clean up any existing test config file
+    testPort = testPort + 1
     val configFile = new File(testConfigPath)
     if configFile.exists() then configFile.delete()
 
   override def afterEach(): Unit =
     super.afterEach()
-    // Clean up test config file
     val configFile = new File(testConfigPath)
     if configFile.exists() then configFile.delete()
 
+  private def getBaseUri(): Uri =
+    Uri
+      .parse(s"http://$testHost:$testPort")
+      .getOrElse(throw new RuntimeException("Invalid URI"))
+
   private def createTestServer(): IO[ApiServer] =
     for
-      // Create test configuration
       testConfig <- IO.pure(
         AppConfig(
           database = DatabaseConfig(
@@ -71,11 +74,11 @@ class ConfigurationIntegrationSpec
             basePath = "src/test/resources/dictionaries",
             fileExtension = ".txt",
             autoCreateDirectories = true
-          )
+          ),
+          version = "1.0.0"
         )
       )
 
-      // Create repositories
       profileRepository <- IO.pure(InMemoryProfileRepository())
       dictionaryRepository <- IO.pure(
         FileDictionaryRepository(
@@ -86,15 +89,14 @@ class ConfigurationIntegrationSpec
       typingTestRepository <- IO.pure(InMemoryTypingTestRepository())
       analyticsRepository <- IO.pure(InMemoryStatisticsRepository())
 
-      // Create configuration service
       configService <- ConfigurationService.create(
         testConfig,
         profileRepository,
         typingTestRepository,
-        dictionaryRepository
+        dictionaryRepository,
+        analyticsRepository
       )
 
-      // Create controllers and server
       typingTestService <- IO.pure(
         TypingTestService(
           profileRepository,
@@ -104,16 +106,22 @@ class ConfigurationIntegrationSpec
       )
 
       analyticsService <- IO.pure(
-        AnalyticsService(analyticsRepository)
+        AnalyticsService(analyticsRepository, AnalyticsCalculatorImpl())
+      )
+      statisticsService <- IO.pure(
+        StatisticsService(analyticsRepository)
       )
       configController <- IO.pure(ConfigurationController(configService))
       typingTestController <- IO.pure(TypingTestController(typingTestService))
-      analyticsController <- IO.pure(AnalyticsController(analyticsService))
+      analyticsController <- IO.pure(
+        AnalyticsController(statisticsService, analyticsService)
+      )
       server <- IO.pure(
         ApiServer(
           configController,
           typingTestController,
-          analyticsController
+          analyticsController,
+          testConfig
         )
       )
     yield server
@@ -126,15 +134,18 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
             val request = basicRequest
-              .get(baseUri.addPath("api", "config"))
+              .get(getBaseUri().addPath("api", "config"))
               .response(asJson[ConfigListResponse])
 
             for
               response <- backend.send(request)
               _ = response.code shouldBe StatusCode.Ok
-              configList = response.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              configList = response.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = configList.entries should not be empty
               _ = configList.entries.map(_.key.section) should contain allOf (
                 "database",
@@ -153,15 +164,18 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
             val request = basicRequest
-              .get(baseUri.addPath("api", "config", "database", "mongoUri"))
+              .get(getBaseUri().addPath("api", "config", "database.mongoUri"))
               .response(asJson[ConfigEntry])
 
             for
               response <- backend.send(request)
               _ = response.code shouldBe StatusCode.Ok
-              configEntry = response.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              configEntry = response.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = configEntry.key.section shouldBe "database"
               _ = configEntry.key.key shouldBe "mongoUri"
               _ = configEntry.value shouldBe "mongodb://test:27017"
@@ -178,7 +192,7 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
             val request = basicRequest
-              .get(baseUri.addPath("api", "config", "nonexistent", "key"))
+              .get(getBaseUri().addPath("api", "config", "nonexistent.key"))
 
             for
               response <- backend.send(request)
@@ -195,22 +209,25 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
 
-            val updateRequest = ConfigUpdateRequest(
-              key = ConfigKey("database", "mongoUri"),
+            val updateRequest = SimpleConfigUpdateRequest(
+              key = "database.mongoUri",
               value = "mongodb://updated:27017"
             )
 
             val request = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(updateRequest)
               .response(asJson[ConfigUpdateResponse])
 
             for
               response <- backend.send(request)
               _ = response.code shouldBe StatusCode.Ok
-              updateResponse = response.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              updateResponse = response.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = updateResponse.success shouldBe true
               _ = updateResponse.updatedConfig.database.mongoUri shouldBe "mongodb://updated:27017"
               _ = updateResponse.message should include("reinitialized")
@@ -226,22 +243,25 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
 
-            val updateRequest = ConfigUpdateRequest(
-              key = ConfigKey("server", "enableCors"),
+            val updateRequest = SimpleConfigUpdateRequest(
+              key = "server.enableCors",
               value = "false"
             )
 
             val request = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(updateRequest)
               .response(asJson[ConfigUpdateResponse])
 
             for
               response <- backend.send(request)
               _ = response.code shouldBe StatusCode.Ok
-              updateResponse = response.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              updateResponse = response.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = updateResponse.success shouldBe true
               _ = updateResponse.updatedConfig.server.enableCors shouldBe false
               _ = updateResponse.message should not include ("reinitialized")
@@ -257,13 +277,13 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
 
-            val updateRequest = ConfigUpdateRequest(
-              key = ConfigKey("server", "port"),
+            val updateRequest = SimpleConfigUpdateRequest(
+              key = "server.port",
               value = "invalid_port"
             )
 
             val request = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(updateRequest)
 
             for
@@ -281,15 +301,18 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
             val request = basicRequest
-              .get(baseUri.addPath("api", "config", "current"))
+              .get(getBaseUri().addPath("api", "config", "current"))
               .response(asJson[AppConfig])
 
             for
               response <- backend.send(request)
               _ = response.code shouldBe StatusCode.Ok
-              config = response.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              config = response.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = config.database.mongoUri shouldBe "mongodb://test:27017"
               _ = config.server.port shouldBe testPort
               _ = config.dictionary.basePath shouldBe "src/test/resources/dictionaries"
@@ -305,31 +328,32 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
 
-            // First update something
-            val updateRequest = ConfigUpdateRequest(
-              key = ConfigKey("database", "mongoUri"),
+            val updateRequest = SimpleConfigUpdateRequest(
+              key = "database.mongoUri",
               value = "mongodb://modified:27017"
             )
 
             val updateReq = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(updateRequest)
               .response(asJson[ConfigUpdateResponse])
 
-            // Then reset to defaults
             val resetRequest = basicRequest
-              .post(baseUri.addPath("api", "config", "reset"))
+              .post(getBaseUri().addPath("api", "config", "reset"))
               .response(asJson[AppConfig])
 
             for
               _ <- backend.send(updateReq)
               resetResponse <- backend.send(resetRequest)
               _ = resetResponse.code shouldBe StatusCode.Ok
-              config = resetResponse.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
-              _ = config.database.mongoUri shouldBe "mongodb://localhost:27017" // default value
-              _ = config.server.port shouldBe 8080 // default value
+              config = resetResponse.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
+              _ = config.database.mongoUri shouldBe "mongodb://localhost:27017"
+              _ = config.server.port shouldBe 8080
             yield ()
           }
         }
@@ -342,64 +366,68 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
 
-            // 1. List all configuration entries (like git config --list)
             val listRequest = basicRequest
-              .get(baseUri.addPath("api", "config"))
+              .get(getBaseUri().addPath("api", "config"))
               .response(asJson[ConfigListResponse])
 
-            // 2. Get a specific entry (like git config user.name)
             val getRequest = basicRequest
-              .get(baseUri.addPath("api", "config", "database", "mongoUri"))
+              .get(getBaseUri().addPath("api", "config", "database.mongoUri"))
               .response(asJson[ConfigEntry])
 
-            // 3. Set a value (like git config user.name "John Doe") - using relative path that can be created
             val customPath = "src/test/resources/custom-dictionaries"
             val setRequest = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(
-                ConfigUpdateRequest(
-                  key = ConfigKey("dictionary", "basePath"),
+                SimpleConfigUpdateRequest(
+                  key = "dictionary.basePath",
                   value = customPath
                 )
               )
               .response(asJson[ConfigUpdateResponse])
 
-            // 4. Verify the change
             val verifyRequest = basicRequest
-              .get(baseUri.addPath("api", "config", "dictionary", "basePath"))
+              .get(getBaseUri().addPath("api", "config", "dictionary.basePath"))
               .response(asJson[ConfigEntry])
 
             for
-              // List all configs
               listResponse <- backend.send(listRequest)
               _ = listResponse.code shouldBe StatusCode.Ok
-              configList = listResponse.body.getOrElse(
-                throw new RuntimeException("Failed to parse list response")
-              )
+              configList = listResponse.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse list response: $error"
+                  )
               _ = configList.entries.length should be > 5
 
-              // Get specific config
               getResponse <- backend.send(getRequest)
               _ = getResponse.code shouldBe StatusCode.Ok
-              originalEntry = getResponse.body.getOrElse(
-                throw new RuntimeException("Failed to parse get response")
-              )
+              originalEntry = getResponse.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse get response: $error"
+                  )
 
-              // Set new value
               setResponse <- backend.send(setRequest)
               _ = setResponse.code shouldBe StatusCode.Ok
-              setResult = setResponse.body.getOrElse(
-                throw new RuntimeException("Failed to parse set response")
-              )
+              setResult = setResponse.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse set response: $error"
+                  )
               _ = setResult.success shouldBe true
               _ = setResult.message should include("reinitialized")
 
-              // Verify change
               verifyResponse <- backend.send(verifyRequest)
               _ = verifyResponse.code shouldBe StatusCode.Ok
-              updatedEntry = verifyResponse.body.getOrElse(
-                throw new RuntimeException("Failed to parse verify response")
-              )
+              updatedEntry = verifyResponse.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse verify response: $error"
+                  )
               _ = updatedEntry.value shouldBe customPath
               _ = updatedEntry.value should not equal originalEntry.value
             yield ()
@@ -414,63 +442,66 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
 
-            // Switch from in-memory to MongoDB
             val enableMongoRequest = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(
-                ConfigUpdateRequest(
-                  key = ConfigKey("database", "useMongoDb"),
+                SimpleConfigUpdateRequest(
+                  key = "database.useMongodb",
                   value = "true"
                 )
               )
               .response(asJson[ConfigUpdateResponse])
 
-            // Change MongoDB URI
             val changeUriRequest = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(
-                ConfigUpdateRequest(
-                  key = ConfigKey("database", "mongoUri"),
+                SimpleConfigUpdateRequest(
+                  key = "database.mongoUri",
                   value = "mongodb://newhost:27017"
                 )
               )
               .response(asJson[ConfigUpdateResponse])
 
-            // Switch back to in-memory
             val disableMongoRequest = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(
-                ConfigUpdateRequest(
-                  key = ConfigKey("database", "useMongoDb"),
+                SimpleConfigUpdateRequest(
+                  key = "database.useMongodb",
                   value = "false"
                 )
               )
               .response(asJson[ConfigUpdateResponse])
 
             for
-              // Enable MongoDB - should reinitialize repositories
               enableResponse <- backend.send(enableMongoRequest)
               _ = enableResponse.code shouldBe StatusCode.Ok
-              enableResult = enableResponse.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              enableResult = enableResponse.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = enableResult.message should include("reinitialized")
               _ = enableResult.updatedConfig.database.useMongoDb shouldBe true
 
-              // Change URI - should reinitialize repositories
               uriResponse <- backend.send(changeUriRequest)
               _ = uriResponse.code shouldBe StatusCode.Ok
-              uriResult = uriResponse.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              uriResult = uriResponse.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = uriResult.message should include("reinitialized")
 
-              // Disable MongoDB - should reinitialize repositories
               disableResponse <- backend.send(disableMongoRequest)
               _ = disableResponse.code shouldBe StatusCode.Ok
-              disableResult = disableResponse.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              disableResult = disableResponse.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = disableResult.message should include("reinitialized")
               _ = disableResult.updatedConfig.database.useMongoDb shouldBe false
             yield ()
@@ -485,22 +516,25 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
 
-            val updateRequest = ConfigUpdateRequest(
-              key = ConfigKey("server", "port"),
+            val updateRequest = SimpleConfigUpdateRequest(
+              key = "server.port",
               value = "9090"
             )
 
             val request = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(updateRequest)
               .response(asJson[ConfigUpdateResponse])
 
             for
               response <- backend.send(request)
               _ = response.code shouldBe StatusCode.Ok
-              updateResponse = response.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              updateResponse = response.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = updateResponse.success shouldBe true
               _ = updateResponse.message should include("restart required")
               _ = updateResponse.updatedConfig.server.port shouldBe 9090
@@ -516,22 +550,25 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
 
-            val updateRequest = ConfigUpdateRequest(
-              key = ConfigKey("server", "host"),
+            val updateRequest = SimpleConfigUpdateRequest(
+              key = "server.host",
               value = "0.0.0.0"
             )
 
             val request = basicRequest
-              .put(baseUri.addPath("api", "config"))
+              .put(getBaseUri().addPath("api", "config"))
               .body(updateRequest)
               .response(asJson[ConfigUpdateResponse])
 
             for
               response <- backend.send(request)
               _ = response.code shouldBe StatusCode.Ok
-              updateResponse = response.body.getOrElse(
-                throw new RuntimeException("Failed to parse response")
-              )
+              updateResponse = response.body match
+                case Right(value) => value
+                case Left(error) =>
+                  throw new RuntimeException(
+                    s"Failed to parse response: $error"
+                  )
               _ = updateResponse.success shouldBe true
               _ = updateResponse.message should include("restart required")
               _ = updateResponse.updatedConfig.server.host shouldBe "0.0.0.0"

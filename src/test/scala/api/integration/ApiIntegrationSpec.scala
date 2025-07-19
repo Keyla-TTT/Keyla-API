@@ -9,7 +9,8 @@ import api.controllers.{
 import api.models.*
 import api.models.ApiModels.given
 import api.server.ApiServer
-import api.services.{AnalyticsService, TypingTestService}
+import api.services.{AnalyticsService, StatisticsService, TypingTestService}
+import analytics.calculator.AnalyticsCalculatorImpl
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.plokhotnyuk.jsoniter_scala.core.*
@@ -95,14 +96,17 @@ class ApiIntegrationSpec
       dictionaryRepository,
       typingTestRepository
     )
-    val analyticsService = AnalyticsService(statisticsRepository)
+    val statisticsService = StatisticsService(statisticsRepository)
+    val analyticsService =
+      AnalyticsService(statisticsRepository, AnalyticsCalculatorImpl())
 
     // Create default configuration for testing
     val testConfig = AppConfig(
       database = DatabaseConfig(useMongoDb = false),
       server = ServerConfig(host = "localhost", port = testPort),
       dictionary =
-        DictionaryConfig(basePath = "src/test/resources/dictionaries")
+        DictionaryConfig(basePath = "src/test/resources/dictionaries"),
+      version = "1.0.0"
     )
 
     // Create configuration service and controller
@@ -110,17 +114,20 @@ class ApiIntegrationSpec
       testConfig,
       profileRepository,
       typingTestRepository,
-      dictionaryRepository
+      dictionaryRepository,
+      statisticsRepository
     )
 
     configServiceIO.flatMap { configService =>
       val configController = ConfigurationController(configService)
       val typingTestController = TypingTestController(typingTestService)
-      val analyticsController = AnalyticsController(analyticsService)
+      val analyticsController =
+        AnalyticsController(statisticsService, analyticsService)
       val server = ApiServer(
         configController,
         typingTestController,
-        analyticsController
+        analyticsController,
+        testConfig
       )
 
       server.resource(testPort, "localhost").use { _ =>

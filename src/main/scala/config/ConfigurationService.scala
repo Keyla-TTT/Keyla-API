@@ -1,5 +1,6 @@
 package config
 
+import analytics.repository.StatisticsRepository
 import api.models.AppError
 import cats.effect.{IO, Ref}
 import typingTest.dictionary.repository.DictionaryRepository
@@ -83,6 +84,29 @@ case class ConfigUpdateRequest(
     value: String
 )
 
+/** Simplified request payload for updating a configuration entry using dot
+  * notation. Used by the PUT /api/config endpoint to modify configuration
+  * values.
+  *
+  * @param key
+  *   The configuration key in dot notation format (e.g., "database.useMongodb",
+  *   "server.port")
+  * @param value
+  *   The new value as a string (will be validated and converted as needed)
+  *
+  * @example
+  *   {{{
+  * val request = SimpleConfigUpdateRequest(
+  *   key = "database.useMongodb",
+  *   value = "true"
+  * )
+  *   }}}
+  */
+case class SimpleConfigUpdateRequest(
+    key: String,
+    value: String
+)
+
 /** Response payload for configuration update operations. Provides feedback on
   * the update success and any side effects (like repository reinitialization).
   *
@@ -149,6 +173,20 @@ trait ConfigurationService:
       request: ConfigUpdateRequest
   ): IO[Either[AppError, ConfigUpdateResponse]]
 
+  /** Updates a configuration entry using simplified dot notation key format.
+    * Automatically saves to file, updates in-memory config, and reinitializes
+    * repositories if the change affects database or dictionary settings.
+    *
+    * @param request
+    *   The simplified update request containing the key in dot notation and new
+    *   value
+    * @return
+    *   IO effect containing either an error or the update response
+    */
+  def updateConfigEntrySimple(
+      request: SimpleConfigUpdateRequest
+  ): IO[Either[AppError, ConfigUpdateResponse]]
+
   /** Reloads the configuration from the configuration file. Updates in-memory
     * state and reinitializes repositories with the loaded config.
     *
@@ -190,7 +228,8 @@ class FileConfigurationService(
     configRef: Ref[IO, AppConfig],
     profileRepositoryRef: Ref[IO, ProfileRepository],
     typingTestRepositoryRef: Ref[IO, TypingTestRepository],
-    dictionaryRepositoryRef: Ref[IO, DictionaryRepository]
+    dictionaryRepositoryRef: Ref[IO, DictionaryRepository],
+    statisticsRepositoryRef: Ref[IO, StatisticsRepository]
 ) extends ConfigurationService:
 
   override def getCurrentConfig(): IO[AppConfig] = configRef.get
@@ -217,6 +256,18 @@ class FileConfigurationService(
     for
       currentConfig <- configRef.get
       result <- updateConfig(currentConfig, request.key, request.value)
+    yield result
+
+  override def updateConfigEntrySimple(
+      request: SimpleConfigUpdateRequest
+  ): IO[Either[AppError, ConfigUpdateResponse]] =
+    for
+      currentConfig <- configRef.get
+      result <- updateConfig(
+        currentConfig,
+        parseSimpleKey(request.key),
+        request.value
+      )
     yield result
 
   override def reloadConfig(): IO[Either[AppError, AppConfig]] =
@@ -302,9 +353,11 @@ class FileConfigurationService(
       newProfileRepo <- IO.pure(AppConfig.createProfileRepository(config))
       newTestRepo <- IO.pure(AppConfig.createTypingTestRepository(config))
       newDictRepo <- IO.pure(AppConfig.createDictionaryRepository(config))
+      newStatisticsRepo <- IO.pure(AppConfig.createStatisticsRepository(config))
       _ <- profileRepositoryRef.set(newProfileRepo)
       _ <- typingTestRepositoryRef.set(newTestRepo)
       _ <- dictionaryRepositoryRef.set(newDictRepo)
+      _ <- statisticsRepositoryRef.set(newStatisticsRepo)
     yield ()
 
   /** Determines if a configuration key change requires repository
@@ -361,10 +414,6 @@ class FileConfigurationService(
         config.copy(database = config.database.copy(mongoUri = value))
       case ConfigKey("database", "databaseName") =>
         config.copy(database = config.database.copy(databaseName = value))
-      case ConfigKey("database", "profilesCollection") =>
-        config.copy(database = config.database.copy(profilesCollection = value))
-      case ConfigKey("database", "testsCollection") =>
-        config.copy(database = config.database.copy(testsCollection = value))
       case ConfigKey("database", "useMongoDb") =>
         config.copy(database =
           config.database.copy(useMongoDb = value.toLowerCase == "true")
@@ -379,8 +428,6 @@ class FileConfigurationService(
         )
       case ConfigKey("dictionary", "basePath") =>
         config.copy(dictionary = config.dictionary.copy(basePath = value))
-      case ConfigKey("dictionary", "fileExtension") =>
-        config.copy(dictionary = config.dictionary.copy(fileExtension = value))
       case ConfigKey("dictionary", "autoCreateDirectories") =>
         config.copy(dictionary =
           config.dictionary.copy(autoCreateDirectories =
@@ -391,6 +438,31 @@ class FileConfigurationService(
         throw new IllegalArgumentException(
           s"Unknown config key: ${key.section}.${key.key}"
         )
+
+  /** Parses a simplified dot notation key into a ConfigKey.
+    *
+    * @param key
+    *   The simplified dot notation key (e.g., "database.useMongodb")
+    * @return
+    *   The corresponding ConfigKey
+    */
+  private def parseSimpleKey(key: String): ConfigKey =
+    key.split('.').toList match
+      case "database" :: "mongoUri" :: Nil => ConfigKey("database", "mongoUri")
+      case "database" :: "databaseName" :: Nil =>
+        ConfigKey("database", "databaseName")
+      case "database" :: "useMongodb" :: Nil =>
+        ConfigKey("database", "useMongoDb")
+      case "server" :: "host" :: Nil       => ConfigKey("server", "host")
+      case "server" :: "port" :: Nil       => ConfigKey("server", "port")
+      case "server" :: "enableCors" :: Nil => ConfigKey("server", "enableCors")
+      case "dictionary" :: "basePath" :: Nil =>
+        ConfigKey("dictionary", "basePath")
+      case "dictionary" :: "fileExtension" :: Nil =>
+        ConfigKey("dictionary", "fileExtension")
+      case "dictionary" :: "autoCreateDirectories" :: Nil =>
+        ConfigKey("dictionary", "autoCreateDirectories")
+      case _ => throw new IllegalArgumentException(s"Unknown simple key: $key")
 
   /** Extracts a single configuration entry with metadata from the current
     * config. Returns None if the key is not recognized.
@@ -425,26 +497,6 @@ class FileConfigurationService(
             "Database name",
             "string",
             "keyla_db"
-          )
-        )
-      case ConfigKey("database", "profilesCollection") =>
-        Some(
-          ConfigEntry(
-            key,
-            config.database.profilesCollection,
-            "Profiles collection name",
-            "string",
-            "profiles"
-          )
-        )
-      case ConfigKey("database", "testsCollection") =>
-        Some(
-          ConfigEntry(
-            key,
-            config.database.testsCollection,
-            "Tests collection name",
-            "string",
-            "typing_tests"
           )
         )
       case ConfigKey("database", "useMongoDb") =>
@@ -485,6 +537,16 @@ class FileConfigurationService(
             "Enable CORS headers",
             "boolean",
             "true"
+          )
+        )
+      case ConfigKey("server", "corsUrls") =>
+        Some(
+          ConfigEntry(
+            key,
+            config.server.corsUrls.mkString(", "),
+            "Allowed CORS origins (read-only, edit config file directly)",
+            "array",
+            "http://localhost:3000"
           )
         )
       case ConfigKey("dictionary", "basePath") =>
@@ -531,12 +593,11 @@ class FileConfigurationService(
     List(
       ConfigKey("database", "mongoUri"),
       ConfigKey("database", "databaseName"),
-      ConfigKey("database", "profilesCollection"),
-      ConfigKey("database", "testsCollection"),
       ConfigKey("database", "useMongoDb"),
       ConfigKey("server", "host"),
       ConfigKey("server", "port"),
       ConfigKey("server", "enableCors"),
+      ConfigKey("server", "corsUrls"),
       ConfigKey("dictionary", "basePath"),
       ConfigKey("dictionary", "fileExtension"),
       ConfigKey("dictionary", "autoCreateDirectories")
@@ -576,16 +637,19 @@ object ConfigurationService:
       initialConfig: AppConfig,
       profileRepository: ProfileRepository,
       typingTestRepository: TypingTestRepository,
-      dictionaryRepository: DictionaryRepository
+      dictionaryRepository: DictionaryRepository,
+      statisticsRepository: StatisticsRepository
   ): IO[FileConfigurationService] =
     for
       configRef <- Ref.of[IO, AppConfig](initialConfig)
       profileRepoRef <- Ref.of[IO, ProfileRepository](profileRepository)
       testRepoRef <- Ref.of[IO, TypingTestRepository](typingTestRepository)
       dictRepoRef <- Ref.of[IO, DictionaryRepository](dictionaryRepository)
+      statRepoRef <- Ref.of[IO, StatisticsRepository](statisticsRepository)
     yield new FileConfigurationService(
       configRef,
       profileRepoRef,
       testRepoRef,
-      dictRepoRef
+      dictRepoRef,
+      statRepoRef
     )

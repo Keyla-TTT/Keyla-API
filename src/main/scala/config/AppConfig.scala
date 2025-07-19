@@ -70,20 +70,26 @@ case class DatabaseConfig(
   *   The port number to bind the server to (1-65535)
   * @param enableCors
   *   Whether to enable Cross-Origin Resource Sharing headers
+  * @param corsUrls
+  *   Array of allowed CORS origins (e.g., ["http://localhost:3000",
+  *   "https://myapp.com"]) This can only be modified by editing the config file
+  *   directly, not via REST API
   *
   * @example
   *   {{{
   * val serverConfig = ServerConfig(
   *   host = "0.0.0.0",  // Listen on all interfaces
   *   port = 9090,
-  *   enableCors = true
+  *   enableCors = true,
+  *   corsUrls = List("http://localhost:3000", "https://myapp.com")
   * )
   *   }}}
   */
 case class ServerConfig(
     host: String = "localhost",
     port: Int = 8080,
-    enableCors: Boolean = true
+    enableCors: Boolean = true,
+    corsUrls: List[String] = List("http://localhost:3000")
 )
 
 /** Configuration settings for dictionary file management. Controls where
@@ -288,7 +294,12 @@ object AppConfig:
       port =
         sys.env.getOrElse("SERVER_PORT", "8080").toIntOption.getOrElse(8080),
       enableCors =
-        sys.env.getOrElse("ENABLE_CORS", "true").toLowerCase == "true"
+        sys.env.getOrElse("ENABLE_CORS", "true").toLowerCase == "true",
+      corsUrls = sys.env
+        .getOrElse("CORS_URLS", "http://localhost:3000")
+        .split(",")
+        .map(_.trim)
+        .toList
     ),
     dictionary = DictionaryConfig(
       basePath =
@@ -353,7 +364,7 @@ object AppConfig:
       config.dictionary.fileExtension
     )
 
-  def createAnalyticsRepository(config: AppConfig): StatisticsRepository =
+  def createStatisticsRepository(config: AppConfig): StatisticsRepository =
     if config.database.useMongoDb then
       val dbInfos = analytics.repository.DatabaseInfos(
         collectionName = "statistics",

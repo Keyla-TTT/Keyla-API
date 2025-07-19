@@ -31,11 +31,14 @@ class MongoStatisticsRepository(dbInfos: DatabaseInfos)
   override def save(statistics: Statistics): Statistics =
     val doc = toDocument(statistics)
     collection.insertOne(doc)
-    val generatedId = doc.getObjectId("_id")
-    fromDocument(doc.append("_id", generatedId))
+    fromDocument(doc)
 
   private def toDocument(statistics: Statistics): Document =
+    val objectId =
+      if statistics.testId.isEmpty then new ObjectId()
+      else new ObjectId(statistics.testId)
     new Document()
+      .append("_id", objectId)
       .append("userID", statistics.userId)
       .append("wpm", statistics.wpm)
       .append("accuracy", statistics.accuracy)

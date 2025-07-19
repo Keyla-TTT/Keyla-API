@@ -9,9 +9,10 @@ import api.endpoints.ApiEndpoints
 import api.routes.ApiRoutes
 import cats.effect.{ExitCode, IO, Resource}
 import cats.syntax.all.*
-import org.http4s.HttpApp
+import org.http4s.{HttpApp, HttpRoutes, Request, Response}
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.Router
+import org.http4s.server.middleware.{CORS, CORSConfig}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import sttp.tapir.server.http4s.Http4sServerInterpreter
@@ -112,7 +113,8 @@ import scala.concurrent.ExecutionContext
 class ApiServer(
     configurationController: ConfigurationController,
     typingTestController: TypingTestController,
-    analyticsController: AnalyticsController
+    analyticsController: AnalyticsController,
+    appConfig: config.AppConfig
 ):
 
   /** Logger instance for structured logging throughout the server lifecycle.
@@ -146,11 +148,15 @@ class ApiServer(
     * Http4s Router to mount both API endpoints and Swagger docs at the root
     * path.
     */
-  private val httpApp: HttpApp[IO] = Router(
-    "/" -> (Http4sServerInterpreter[IO]().toRoutes(
-      apiRoutes.routes
-    ) <+> swaggerRoutes)
-  ).orNotFound
+  private val httpApp: HttpApp[IO] =
+    val baseApp = Router(
+      "/" -> (Http4sServerInterpreter[IO]().toRoutes(
+        apiRoutes.routes
+      ) <+> swaggerRoutes)
+    ).orNotFound
+
+    if appConfig.server.enableCors then CORS(baseApp)
+    else baseApp
 
   /** Execution context for the HTTP server operations. Uses the global
     * execution context for simplicity - in production environments consider
@@ -289,10 +295,12 @@ object ApiServer:
   def apply(
       configurationController: ConfigurationController,
       typingTestController: TypingTestController,
-      analyticsController: AnalyticsController
+      analyticsController: AnalyticsController,
+      appConfig: config.AppConfig
   ): ApiServer =
     new ApiServer(
       configurationController,
       typingTestController,
-      analyticsController
+      analyticsController,
+      appConfig
     )

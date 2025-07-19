@@ -67,12 +67,6 @@ class ApiRoutes(
     ApiEndpoints.getAllConfigEntries.serverLogic { _ =>
       handleControllerResult(configController.getAllConfigEntries())
     },
-    ApiEndpoints.getConfigEntry.serverLogic { case (section, key) =>
-      handleControllerResult(configController.getConfigEntry(section, key))
-    },
-    ApiEndpoints.updateConfigEntry.serverLogic { request =>
-      handleControllerResult(configController.updateConfigEntry(request))
-    },
     ApiEndpoints.getCurrentConfig.serverLogic { _ =>
       handleControllerResult(configController.getCurrentConfig())
     },
@@ -81,5 +75,11 @@ class ApiRoutes(
     },
     ApiEndpoints.resetConfigToDefaults.serverLogic { _ =>
       handleControllerResult(configController.resetToDefaults())
+    },
+    ApiEndpoints.getConfigEntry.serverLogic { key =>
+      handleControllerResult(configController.getConfigEntry(key))
+    },
+    ApiEndpoints.updateConfigEntry.serverLogic { request =>
+      handleControllerResult(configController.updateConfigEntrySimple(request))
     }
   )

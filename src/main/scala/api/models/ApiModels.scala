@@ -115,6 +115,21 @@ case class ProfileStatisticsListResponse(
     statistics: List[StatisticsResponse]
 )
 
+case class AnalyticsResponse(
+    userId: String,
+    totalTests: Int,
+    averageWpm: Double,
+    averageAccuracy: Double,
+    bestWpm: Double,
+    worstWpm: Double,
+    bestAccuracy: Double,
+    worstAccuracy: Double,
+    wpmImprovement: Double,
+    accuracyImprovement: Double,
+    totalErrors: Int,
+    averageErrorsPerTest: Double
+)
+
 object ApiModels:
   given JsonValueCodec[CreateProfileRequest] = JsonCodecMaker.make
   given JsonValueCodec[ProfileResponse] = JsonCodecMaker.make
@@ -136,11 +151,14 @@ object ApiModels:
 
   given JsonValueCodec[ProfileStatisticsListResponse] = JsonCodecMaker.make
 
+  given JsonValueCodec[AnalyticsResponse] = JsonCodecMaker.make
+
   // Configuration codecs
   given JsonValueCodec[ConfigKey] = JsonCodecMaker.make
   given JsonValueCodec[ConfigEntry] = JsonCodecMaker.make
   given JsonValueCodec[ConfigListResponse] = JsonCodecMaker.make
   given JsonValueCodec[ConfigUpdateRequest] = JsonCodecMaker.make
+  given JsonValueCodec[SimpleConfigUpdateRequest] = JsonCodecMaker.make
   given JsonValueCodec[ConfigUpdateResponse] = JsonCodecMaker.make
 
   def profileToResponse(profile: Profile): ProfileResponse =

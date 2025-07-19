@@ -16,7 +16,8 @@ class InMemoryStatisticsRepository extends StatisticsRepository:
 
   override def save(statistics: Statistics): Statistics =
     require(statistics != null, "Statistics cannot be null")
-    val testId = generateUniqueId()
+    require(statistics.testId.nonEmpty, "TestId cannot be empty")
+    val testId = statistics.testId
     val statisticsWithId = statistics.copy(testId = testId)
     statisticsStore.put(testId, statisticsWithId)
     logger.info(s"Saved statistics with testId: $testId")
@@ -41,9 +42,3 @@ class InMemoryStatisticsRepository extends StatisticsRepository:
     logger.warn("Cleaning all statistics from repository")
     statisticsStore.clear()
     true
-
-  @scala.annotation.tailrec
-  private def generateUniqueId(): String =
-    val id = java.util.UUID.randomUUID().toString
-    if statisticsStore.contains(id) then generateUniqueId()
-    else id

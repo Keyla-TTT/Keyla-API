@@ -4,7 +4,8 @@ import api.controllers.{
   TypingTestController
 }
 import api.server.ApiServer
-import api.services.{AnalyticsService, TypingTestService}
+import api.services.{AnalyticsService, StatisticsService, TypingTestService}
+import analytics.calculator.AnalyticsCalculatorImpl
 import cats.effect.{ExitCode, IO, IOApp}
 import config.{AppConfig, ConfigurationService}
 
@@ -17,13 +18,14 @@ object Main extends IOApp:
       profileRepository = AppConfig.createProfileRepository(config)
       dictionaryRepository = AppConfig.createDictionaryRepository(config)
       typingTestRepository = AppConfig.createTypingTestRepository(config)
-      analyticsRepository = AppConfig.createAnalyticsRepository(config)
+      statisticsRepository = AppConfig.createStatisticsRepository(config)
 
       configService <- ConfigurationService.create(
         config,
         profileRepository,
         typingTestRepository,
-        dictionaryRepository
+        dictionaryRepository,
+        statisticsRepository
       )
 
       service = TypingTestService(
@@ -31,15 +33,24 @@ object Main extends IOApp:
         dictionaryRepository,
         typingTestRepository
       )
-      analyticsService = AnalyticsService(analyticsRepository)
+      statisticsService = StatisticsService(statisticsRepository)
+      analyticsCalculator = AnalyticsCalculatorImpl()
+      analyticsService = AnalyticsService(
+        statisticsRepository,
+        analyticsCalculator
+      )
 
       configController = ConfigurationController(configService)
       typingTestController = TypingTestController(service)
-      analyticsController = AnalyticsController(analyticsService)
+      analyticsController = AnalyticsController(
+        statisticsService,
+        analyticsService
+      )
       server = ApiServer(
         configController,
         typingTestController,
-        analyticsController
+        analyticsController,
+        config
       )
 
       _ <- IO.println(

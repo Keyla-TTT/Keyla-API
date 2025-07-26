@@ -113,6 +113,34 @@ trait TypingTest[I] extends TypingContext:
     *   Sequence of test elements
     */
   def words: Seq[I]
+
+/** Default typing context implementation with concrete type definitions.
+  *
+  * This trait provides a standard implementation of `TypingContext` with
+  * commonly used types for the Keyla typing test application. It defines the
+  * default types for modifiers, sources, and information used in typing tests.
+  *
+  * =Type Definitions=
+  *
+  *   - '''Modifier''': String - Modifier names as strings
+  *   - '''Source''': Dictionary - Dictionary objects as word sources
+  *   - '''Info''': CompletedInfo - Test completion information
+  *
+  * =Usage=
+  *
+  * This trait is typically mixed in with `TypingTest` implementations to
+  * provide a concrete typing context with well-defined types.
+  *
+  * @example
+  *   {{{
+  * case class MyTypingTest(
+  *   sources: Set[Dictionary],
+  *   modifiers: Seq[String],
+  *   info: CompletedInfo,
+  *   words: Seq[String]
+  * ) extends TypingTest[String] with DefaultContext
+  *   }}}
+  */
 trait DefaultContext extends TypingContext:
   override type Modifier = String
   override type Source = Dictionary

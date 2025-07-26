@@ -1,11 +1,12 @@
 package users_management.service
 
+import common.DatabaseInfos
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.testcontainers.containers.MongoDBContainer
 import users_management.factory.UserFactory
-import users_management.repository.{DatabaseInfos, MongoProfileRepository}
+import users_management.repository.MongoProfileRepository
 
 import scala.compiletime.uninitialized
 
@@ -23,6 +24,9 @@ class TestServiceWithMongoRepository
     mongoContainer.start()
 
   override def afterAll(): Unit =
+    if repository != null then
+      repository.deleteAll()
+      repository.close()
     mongoContainer.stop()
 
   before {

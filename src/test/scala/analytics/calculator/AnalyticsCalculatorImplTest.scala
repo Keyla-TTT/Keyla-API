@@ -1,6 +1,6 @@
 package analytics.calculator
 
-import analytics.model.{UserAnalytics, UserStatistics}
+import analytics.model.{UserAnalytics, TestStatistics}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
@@ -26,7 +26,7 @@ class AnalyticsCalculatorImplTest extends AnyFunSuite with Matchers:
   }
 
   test("analyzeUser should correctly calculate analytics for single test") {
-    val stats = UserStatistics(
+    val stats = TestStatistics(
       testId = "test1",
       userId = "user1",
       wpm = 50.0,
@@ -53,8 +53,8 @@ class AnalyticsCalculatorImplTest extends AnyFunSuite with Matchers:
 
   test("analyzeUser should correctly calculate analytics for multiple tests") {
     val stats1 =
-      UserStatistics("test1", "user1", 40.0, 90.0, List(1), 1000L)
-    val stats2 = UserStatistics(
+      TestStatistics("test1", "user1", 40.0, 90.0, List(1), 1000L)
+    val stats2 = TestStatistics(
       "test2",
       "user1",
       60.0,

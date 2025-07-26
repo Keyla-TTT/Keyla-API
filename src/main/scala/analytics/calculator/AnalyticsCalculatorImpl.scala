@@ -1,14 +1,13 @@
 package analytics.calculator
 
-import analytics.model.{UserAnalytics, UserStatistics, UserAnalyticsBuilder}
+import analytics.model.{UserAnalytics, TestStatistics, UserAnalyticsBuilder}
 
 class AnalyticsCalculatorImpl extends AnalyticsCalculator:
 
-  override def analyzeUser(statistics: List[UserStatistics]): UserAnalytics =
+  override def analyzeUser(statistics: List[TestStatistics]): UserAnalytics =
 
     if statistics.isEmpty then
       return new UserAnalyticsBuilder()
-        .setUserId("")
         .setTotalTests(0)
         .setAverageWpm(0.0)
         .setAverageAccuracy(0.0)
@@ -22,7 +21,6 @@ class AnalyticsCalculatorImpl extends AnalyticsCalculator:
         .setAverageErrorsPerTest(0.0)
         .build()
 
-    val userId = statistics.head.userId
     val totalTests = statistics.size
     val totalErrors = statistics.flatMap(_.errors).size
     val avgErrorsPerTest = totalErrors.toDouble / totalTests
@@ -43,7 +41,6 @@ class AnalyticsCalculatorImpl extends AnalyticsCalculator:
     val accuracyImprovement = lastTest.accuracy - firstTest.accuracy
 
     new UserAnalyticsBuilder()
-      .setUserId(userId)
       .setTotalTests(totalTests)
       .setAverageWpm(avgWpm)
       .setAverageAccuracy(avgAccuracy)

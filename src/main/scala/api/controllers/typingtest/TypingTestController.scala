@@ -1,6 +1,8 @@
-package api.controllers
+package api.controllers.typingtest
 
-import api.models.*
+import api.models.AppError
+import api.models.AppResult
+import api.models.typingtest.*
 import api.services.TypingTestService
 import cats.effect.IO
 import config.*
@@ -19,14 +21,6 @@ class TypingTestController(
   )(transform: A => B): IO[Either[AppError, B]] =
     serviceCall.value.map(_.map(transform))
 
-  def createProfile(
-      request: CreateProfileRequest
-  ): IO[Either[AppError, ProfileResponse]] =
-    handleServiceResult(service.createProfile(request))
-
-  def getAllProfiles(): IO[Either[AppError, ProfileListResponse]] =
-    handleServiceResult(service.getAllProfiles())
-
   def requestTest(request: TestRequest): IO[Either[AppError, TestResponse]] =
     handleServiceResult(service.requestTest(request))
 
@@ -37,14 +31,7 @@ class TypingTestController(
       profileId: String
   ): IO[Either[AppError, TestListResponse]] =
     handleServiceResultWithTransform(service.getTestsByProfileId(profileId))(
-      ApiModels.testListToResponse
-    )
-
-  def getTestsByLanguage(
-      language: String
-  ): IO[Either[AppError, TestListResponse]] =
-    handleServiceResultWithTransform(service.getTestsByLanguage(language))(
-      ApiModels.testListToResponse
+      TypingTestModels.testListToResponse
     )
 
   def getLastTest(profileId: String): IO[Either[AppError, LastTestResponse]] =
@@ -59,10 +46,8 @@ class TypingTestController(
   def getAllDictionaries(): IO[Either[AppError, DictionariesResponse]] =
     handleServiceResult(service.getAllDictionaries())
 
-  def getLanguages(): IO[Either[AppError, LanguagesResponse]] =
-    handleServiceResult(service.getLanguages())
+  def getAllModifiers(): IO[Either[AppError, ModifiersResponse]] =
+    handleServiceResult(service.getAllModifiers())
 
-  def getDictionariesByLanguage(
-      language: String
-  ): IO[Either[AppError, DictionariesResponse]] =
-    handleServiceResult(service.getDictionariesByLanguage(language))
+  def getAllMergers(): IO[Either[AppError, MergersResponse]] =
+    handleServiceResult(service.getAllMergers())

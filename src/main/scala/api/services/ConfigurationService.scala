@@ -1,8 +1,9 @@
-package config
+package api.services
 
 import analytics.repository.StatisticsRepository
 import api.models.AppError
 import cats.effect.{IO, Ref}
+import config.*
 import typingTest.dictionary.repository.DictionaryRepository
 import typingTest.tests.repository.TypingTestRepository
 import users_management.repository.ProfileRepository
@@ -114,13 +115,10 @@ case class SimpleConfigUpdateRequest(
   *   Whether the update operation succeeded
   * @param message
   *   Descriptive message about what happened, including restart requirements
-  * @param updatedConfig
-  *   The complete updated configuration after the change
   */
 case class ConfigUpdateResponse(
     success: Boolean,
-    message: String,
-    updatedConfig: AppConfig
+    message: String
 )
 
 /** Service trait for managing application configuration in a git-like manner.
@@ -142,7 +140,7 @@ trait ConfigurationService:
     * @return
     *   IO effect containing the current AppConfig
     */
-  def getCurrentConfig(): IO[AppConfig]
+  def getCurrentConfig: IO[AppConfig]
 
   /** Gets a specific configuration entry by its key.
     *
@@ -232,7 +230,7 @@ class FileConfigurationService(
     statisticsRepositoryRef: Ref[IO, StatisticsRepository]
 ) extends ConfigurationService:
 
-  override def getCurrentConfig(): IO[AppConfig] = configRef.get
+  override def getCurrentConfig: IO[AppConfig] = configRef.get
 
   override def getConfigEntry(
       key: ConfigKey
@@ -272,8 +270,8 @@ class FileConfigurationService(
 
   override def reloadConfig(): IO[Either[AppError, AppConfig]] =
     for
-      configPath <- IO.pure(AppConfig.getConfigPath)
-      configOpt <- AppConfig.loadFromFile(configPath)
+      configPath <- IO.pure(ConfigUtils.getConfigPath)
+      configOpt <- ConfigUtils.loadFromFile(configPath)
       result <- configOpt match
         case Some(config) =>
           for
@@ -286,9 +284,9 @@ class FileConfigurationService(
 
   override def resetToDefaults(): IO[Either[AppError, AppConfig]] =
     for
-      defaultConfig <- IO.pure(AppConfig())
+      defaultConfig <- IO.pure(ConfigUtils.getDefaultConfig)
       _ <- configRef.set(defaultConfig)
-      _ <- AppConfig.saveToFile(defaultConfig, AppConfig.getConfigPath)
+      _ <- ConfigUtils.saveToFile(defaultConfig, ConfigUtils.getConfigPath)
       _ <- updateRepositories(defaultConfig)
     yield Right(defaultConfig)
 
@@ -312,7 +310,7 @@ class FileConfigurationService(
     try
       val updatedConfig = updateConfigValue(currentConfig, key, value)
       for
-        _ <- AppConfig.saveToFile(updatedConfig, AppConfig.getConfigPath)
+        _ <- ConfigUtils.saveToFile(updatedConfig, ConfigUtils.getConfigPath)
         _ <- configRef.set(updatedConfig)
         needsRepoUpdate = requiresRepositoryUpdate(key)
         needsRestart = requiresServerRestart(key)
@@ -329,8 +327,7 @@ class FileConfigurationService(
       yield Right(
         ConfigUpdateResponse(
           success = true,
-          message = message,
-          updatedConfig = updatedConfig
+          message = message
         )
       )
     catch
@@ -350,10 +347,12 @@ class FileConfigurationService(
     */
   private def updateRepositories(config: AppConfig): IO[Unit] =
     for
-      newProfileRepo <- IO.pure(AppConfig.createProfileRepository(config))
-      newTestRepo <- IO.pure(AppConfig.createTypingTestRepository(config))
-      newDictRepo <- IO.pure(AppConfig.createDictionaryRepository(config))
-      newStatisticsRepo <- IO.pure(AppConfig.createStatisticsRepository(config))
+      newProfileRepo <- IO.pure(ConfigUtils.createProfileRepository(config))
+      newTestRepo <- IO.pure(ConfigUtils.createTypingTestRepository(config))
+      newDictRepo <- IO.pure(ConfigUtils.createDictionaryRepository(config))
+      newStatisticsRepo <- IO.pure(
+        ConfigUtils.createStatisticsRepository(config)
+      )
       _ <- profileRepositoryRef.set(newProfileRepo)
       _ <- typingTestRepositoryRef.set(newTestRepo)
       _ <- dictionaryRepositoryRef.set(newDictRepo)
@@ -371,10 +370,9 @@ class FileConfigurationService(
     */
   private def requiresRepositoryUpdate(key: ConfigKey): Boolean =
     key match
-      case ConfigKey("database", _)                 => true
-      case ConfigKey("dictionary", "basePath")      => true
-      case ConfigKey("dictionary", "fileExtension") => true
-      case _                                        => false
+      case ConfigKey("database", _)            => true
+      case ConfigKey("dictionary", "basePath") => true
+      case _                                   => false
 
   /** Determines if a configuration key change requires a server restart. Server
     * host and port changes cannot be applied to a running server.
@@ -422,10 +420,6 @@ class FileConfigurationService(
         config.copy(server = config.server.copy(host = value))
       case ConfigKey("server", "port") =>
         config.copy(server = config.server.copy(port = value.toInt))
-      case ConfigKey("server", "enableCors") =>
-        config.copy(server =
-          config.server.copy(enableCors = value.toLowerCase == "true")
-        )
       case ConfigKey("dictionary", "basePath") =>
         config.copy(dictionary = config.dictionary.copy(basePath = value))
       case ConfigKey("dictionary", "autoCreateDirectories") =>
@@ -451,18 +445,15 @@ class FileConfigurationService(
       case "database" :: "mongoUri" :: Nil => ConfigKey("database", "mongoUri")
       case "database" :: "databaseName" :: Nil =>
         ConfigKey("database", "databaseName")
-      case "database" :: "useMongodb" :: Nil =>
+      case "database" :: "useMongoDb" :: Nil =>
         ConfigKey("database", "useMongoDb")
-      case "server" :: "host" :: Nil       => ConfigKey("server", "host")
-      case "server" :: "port" :: Nil       => ConfigKey("server", "port")
-      case "server" :: "enableCors" :: Nil => ConfigKey("server", "enableCors")
+      case "server" :: "host" :: Nil => ConfigKey("server", "host")
+      case "server" :: "port" :: Nil => ConfigKey("server", "port")
       case "dictionary" :: "basePath" :: Nil =>
         ConfigKey("dictionary", "basePath")
-      case "dictionary" :: "fileExtension" :: Nil =>
-        ConfigKey("dictionary", "fileExtension")
       case "dictionary" :: "autoCreateDirectories" :: Nil =>
         ConfigKey("dictionary", "autoCreateDirectories")
-      case _ => throw new IllegalArgumentException(s"Unknown simple key: $key")
+      case _ => throw new IllegalArgumentException(s"Unknown key: $key")
 
   /** Extracts a single configuration entry with metadata from the current
     * config. Returns None if the key is not recognized.
@@ -529,26 +520,6 @@ class FileConfigurationService(
             "8080"
           )
         )
-      case ConfigKey("server", "enableCors") =>
-        Some(
-          ConfigEntry(
-            key,
-            config.server.enableCors.toString,
-            "Enable CORS headers",
-            "boolean",
-            "true"
-          )
-        )
-      case ConfigKey("server", "corsUrls") =>
-        Some(
-          ConfigEntry(
-            key,
-            config.server.corsUrls.mkString(", "),
-            "Allowed CORS origins (read-only, edit config file directly)",
-            "array",
-            "http://localhost:3000"
-          )
-        )
       case ConfigKey("dictionary", "basePath") =>
         Some(
           ConfigEntry(
@@ -557,16 +528,6 @@ class FileConfigurationService(
             "Base path for dictionary files",
             "string",
             "src/main/resources/dictionaries"
-          )
-        )
-      case ConfigKey("dictionary", "fileExtension") =>
-        Some(
-          ConfigEntry(
-            key,
-            config.dictionary.fileExtension,
-            "File extension for dictionary files",
-            "string",
-            ".txt"
           )
         )
       case ConfigKey("dictionary", "autoCreateDirectories") =>
@@ -596,10 +557,7 @@ class FileConfigurationService(
       ConfigKey("database", "useMongoDb"),
       ConfigKey("server", "host"),
       ConfigKey("server", "port"),
-      ConfigKey("server", "enableCors"),
-      ConfigKey("server", "corsUrls"),
       ConfigKey("dictionary", "basePath"),
-      ConfigKey("dictionary", "fileExtension"),
       ConfigKey("dictionary", "autoCreateDirectories")
     ).flatMap(key => extractConfigEntry(config, key))
 
@@ -625,10 +583,10 @@ object ConfigurationService:
     * @example
     *   {{{
     * for {
-    *   config <- AppConfig.loadOrCreateDefault()
-    *   profileRepo = AppConfig.createProfileRepository(config)
-    *   testRepo = AppConfig.createTypingTestRepository(config)
-    *   dictRepo = AppConfig.createDictionaryRepository(config)
+    *   config <- ConfigUtils.loadOrCreateDefault()
+    *   profileRepo = ConfigUtils.createProfileRepository(config)
+    *   testRepo = ConfigUtils.createTypingTestRepository(config)
+    *   dictRepo = ConfigUtils.createDictionaryRepository(config)
     *   configService <- ConfigurationService.create(config, profileRepo, testRepo, dictRepo)
     * } yield configService
     *   }}}

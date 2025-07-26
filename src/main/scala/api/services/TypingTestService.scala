@@ -1,23 +1,36 @@
 package api.services
 
-import api.models.*
+import analytics.model.TestStatistics
+import analytics.repository.StatisticsRepository
 import api.models.AppError.*
+import api.models.AppResult
+import api.models.typingtest.*
 import cats.effect.IO
-import typingTest.dictionary.loader.{DictionaryLoader, FileDictionaryLoader}
+import org.joda.time.DateTime
+import typingTest.dictionary.loader.{
+  DictionaryLoader,
+  FileDictionaryLoader,
+  JsonDictionaryLoader,
+  MixedDictionaryLoader
+}
 import typingTest.dictionary.model.Dictionary
 import typingTest.dictionary.repository.DictionaryRepository
 import typingTest.tests.factory.TypingTestFactory
-import typingTest.tests.model.{DefaultContext, PersistedTypingTest, TypingTest}
+import typingTest.tests.model.{
+  CompletedInfo,
+  DefaultContext,
+  PersistedTypingTest,
+  TypingTest
+}
 import typingTest.tests.repository.TypingTestRepository
-import users_management.model.{Profile, UserProfile}
+import users_management.model.Profile
 import users_management.repository.ProfileRepository
+import typingTest.tests.factory.TypingTestFactory.copy
 
-/** Core business logic service for managing typing tests, user profiles, and
-  * dictionaries.
+/** Core business logic service for managing typing tests and dictionaries.
   *
   * This service provides the main functionality of the Keyla typing test
   * application:
-  *   - User profile management (creation and retrieval)
   *   - Typing test lifecycle management (creation, execution, completion)
   *   - Dictionary and language operations
   *   - Test result processing and storage
@@ -29,8 +42,6 @@ import users_management.repository.ProfileRepository
   *
   * =Key Features=
   *
-  *   - '''Profile Management''': Create and manage user profiles with custom
-  *     settings
   *   - '''Test Creation''': Generate typing tests with configurable parameters
   *     and modifiers
   *   - '''Dictionary Integration''': Support for multiple languages and
@@ -61,7 +72,7 @@ import users_management.repository.ProfileRepository
   *
   * All service methods return `AppResult[T]` which encapsulates either success
   * or typed errors:
-  *   - '''Profile Errors''': ProfileNotFound, ProfileCreationFailed
+  *   - '''Profile Errors''': ProfileNotFound
   *   - '''Test Errors''': TestNotFound, TestAlreadyCompleted,
   *     TestCreationFailed
   *   - '''Dictionary Errors''': DictionaryNotFound, LanguageNotSupported
@@ -72,10 +83,6 @@ import users_management.repository.ProfileRepository
   *   {{{
   * // Create a typing test service
   * val service = TypingTestService(profileRepo, dictionaryRepo, testRepo)
-  *
-  * // Create a user profile
-  * val profileRequest = CreateProfileRequest("John Doe", "john@example.com", UserSettings())
-  * val profileResult = service.createProfile(profileRequest)
   *
   * // Request a typing test
   * val testRequest = TestRequest(
@@ -100,43 +107,6 @@ import users_management.repository.ProfileRepository
   *   }}}
   */
 trait TypingTestService:
-
-  /** Creates a new user profile with the provided information.
-    *
-    * @param request
-    *   The profile creation request containing name, email, and settings
-    * @return
-    *   AppResult containing the created profile response or an error
-    *
-    * @example
-    *   {{{
-    * val request = CreateProfileRequest(
-    *   name = "Alice Johnson",
-    *   email = "alice@example.com",
-    *   settings = UserSettings(theme = "dark", soundEnabled = true)
-    * )
-    * service.createProfile(request).value.map {
-    *   case Right(response) => println(s"Created profile: ${response.id}")
-    *   case Left(error) => println(s"Failed: ${error.message}")
-    * }
-    *   }}}
-    */
-  def createProfile(request: CreateProfileRequest): AppResult[ProfileResponse]
-
-  /** Retrieves all user profiles in the system.
-    *
-    * @return
-    *   AppResult containing the list of all profiles or an error
-    *
-    * @example
-    *   {{{
-    * service.getAllProfiles().value.map {
-    *   case Right(response) => println(s"Found ${response.profiles.length} profiles")
-    *   case Left(error) => println(s"Error: ${error.message}")
-    * }
-    *   }}}
-    */
-  def getAllProfiles(): AppResult[ProfileListResponse]
 
   /** Creates a new typing test with the specified parameters.
     *
@@ -215,24 +185,6 @@ trait TypingTestService:
       profileId: String
   ): AppResult[List[PersistedTypingTest]]
 
-  /** Retrieves all typing tests for a specific language. Useful for analytics
-    * and language-specific statistics.
-    *
-    * @param language
-    *   The language code (e.g., "english", "spanish", "french")
-    * @return
-    *   AppResult containing the list of tests or an error
-    *
-    * @example
-    *   {{{
-    * service.getTestsByLanguage("english").value.map {
-    *   case Right(tests) => println(s"Found ${tests.length} English tests")
-    *   case Left(error) => println(s"Error: ${error.message}")
-    * }
-    *   }}}
-    */
-  def getTestsByLanguage(language: String): AppResult[List[PersistedTypingTest]]
-
   /** Retrieves the most recent non-completed test for a user profile. Allows
     * users to resume interrupted typing tests.
     *
@@ -307,43 +259,19 @@ trait TypingTestService:
     */
   def getAllDictionaries(): AppResult[DictionariesResponse]
 
-  /** Retrieves all supported languages with their available dictionaries.
+  /** Retrieves all available modifiers.
     *
     * @return
-    *   AppResult containing the languages response or an error
-    *
-    * @example
-    *   {{{
-    * service.getLanguages().value.map {
-    *   case Right(response) =>
-    *     response.languages.foreach { lang =>
-    *       println(s"${lang.name}: ${lang.dictionaries.length} dictionaries")
-    *     }
-    *   case Left(error) => println(s"Error: ${error.message}")
-    * }
-    *   }}}
+    *   AppResult containing the modifiers response or an error
     */
-  def getLanguages(): AppResult[LanguagesResponse]
+  def getAllModifiers(): AppResult[ModifiersResponse]
 
-  /** Retrieves all dictionaries available for a specific language.
+  /** Retrieves all available mergers.
     *
-    * @param language
-    *   The language code to filter by
     * @return
-    *   AppResult containing the dictionaries response or an error
-    *
-    * @example
-    *   {{{
-    * service.getDictionariesByLanguage("spanish").value.map {
-    *   case Right(response) =>
-    *     println(s"Spanish dictionaries: ${response.dictionaries.map(_.name).mkString(", ")}")
-    *   case Left(error) => println(s"Error: ${error.message}")
-    * }
-    *   }}}
+    *   AppResult containing the mergers response or an error
     */
-  def getDictionariesByLanguage(
-      language: String
-  ): AppResult[DictionariesResponse]
+  def getAllMergers(): AppResult[MergersResponse]
 
 /** Companion object for TypingTestService providing factory methods.
   */
@@ -357,6 +285,8 @@ object TypingTestService:
     *   Repository for dictionary and language operations
     * @param typingTestRepository
     *   Repository for typing test persistence
+    * @param statisticsRepository
+    *   Repository for statistics data persistence
     * @return
     *   A configured TypingTestService instance
     *
@@ -365,19 +295,22 @@ object TypingTestService:
     * val service = TypingTestService(
     *   profileRepository = mongoProfileRepo,
     *   dictionaryRepository = fileDictionaryRepo,
-    *   typingTestRepository = mongoTestRepo
+    *   typingTestRepository = mongoTestRepo,
+    *   statisticsRepository = mongoStatsRepo
     * )
     *   }}}
     */
   def apply(
       profileRepository: ProfileRepository,
       dictionaryRepository: DictionaryRepository,
-      typingTestRepository: TypingTestRepository
+      typingTestRepository: TypingTestRepository,
+      statisticsRepository: StatisticsRepository
   ): TypingTestService =
     TypingTestServiceImpl(
       profileRepository,
       dictionaryRepository,
-      typingTestRepository
+      typingTestRepository,
+      statisticsRepository
     )
 
 /** Default implementation of TypingTestService using file-based dictionary
@@ -400,63 +333,106 @@ object TypingTestService:
   *   Repository for dictionary and language data
   * @param typingTestRepository
   *   Repository for typing test data persistence
+  * @param statisticsRepository
+  *   Repository for statistics data persistence
   */
 class TypingTestServiceImpl(
     profileRepository: ProfileRepository,
     dictionaryRepository: DictionaryRepository,
-    typingTestRepository: TypingTestRepository
+    typingTestRepository: TypingTestRepository,
+    statisticsRepository: StatisticsRepository
 ) extends TypingTestService:
 
   /** Dictionary loader for reading dictionary content from files. Uses
     * FileDictionaryLoader to load word lists and text content.
     */
-  private val dictionaryLoader: DictionaryLoader = FileDictionaryLoader()
-
-  def createProfile(request: CreateProfileRequest): AppResult[ProfileResponse] =
-    for
-      newProfile <- AppResult.pure(
-        UserProfile(
-          id = None,
-          name = request.name,
-          email = request.email,
-          settings = request.settings
-        )
+  private val dictionaryLoader: DictionaryLoader =
+    MixedDictionaryLoader(
+      Seq(
+        ".txt" -> FileDictionaryLoader(),
+        ".json" -> JsonDictionaryLoader()
       )
-      savedProfile <- AppResult.attemptBlocking(
-        IO.blocking(profileRepository.create(newProfile))
-      )(error => ProfileCreationFailed(error.getMessage))
-      response <- AppResult.pure(ApiModels.profileToResponse(savedProfile))
-    yield response
-
-  def getAllProfiles(): AppResult[ProfileListResponse] =
-    AppResult
-      .attemptBlocking(
-        IO.blocking(profileRepository.list())
-      )(error => DatabaseError("profiles lookup", error.getMessage))
-      .map(ApiModels.profileListToResponse)
+    )
 
   def requestTest(request: TestRequest): AppResult[TestResponse] =
     for
       _ <- validateModifiers(request.modifiers)
+      _ <- validateMergers(request.sources)
       _ <- getProfile(request.profileId)
       _ <- deleteNonCompletedTests(request.profileId)
-      dictionary <- getDictionary(request.language, request.dictionaryName)
-      test <- createTypingTest(dictionary, request)
+      sources <- loadSources(request.sources)
+      test <- createTypingTest(sources, request)
       persistedTest <- saveTypingTest(
         test,
-        request.profileId,
-        request.language,
-        request.timeLimit
+        request.profileId
       )
       response <- AppResult.pure(
-        ApiModels.testToResponse(
+        TypingTestModels.testToResponse(
           test,
           persistedTest.id.get,
-          request.profileId,
-          request.timeLimit
+          request.profileId
         )
       )
     yield response
+
+  private def loadSources(
+      sources: List[SourceWithMerger]
+  ): AppResult[List[Dictionary]] =
+    AppResult.sequence(
+      sources.map(s => getDictionary(s.name))
+    )
+
+  private def validateMergers(
+      sources: List[SourceWithMerger]
+  ): AppResult[Unit] =
+    val mergers = sources.drop(1).flatMap(_.merger)
+    mergers.find(!MergerResolver.isValidMerger(_)) match
+      case Some(invalidMerger) =>
+        AppResult.raiseError(
+          ValidationError(
+            "merger",
+            s"Invalid merger: $invalidMerger. Available: ${MergerResolver.getAvailableMergers.mkString(", ")}"
+          )
+        )
+      case None => AppResult.pure(())
+
+  private def createTypingTest(
+      dictionaries: List[Dictionary],
+      request: TestRequest
+  ): AppResult[TypingTest[String] & DefaultContext] =
+    AppResult.attemptBlocking(
+      IO.blocking {
+        val testBuilder0 = TypingTestFactory
+          .create[String]()
+          .useLoader(dictionaryLoader)
+          .useSource(dictionaries.head)
+
+        val testBuilder =
+          dictionaries.tail.zip(request.sources.tail).foldLeft(testBuilder0) {
+            case (builder, (dict, srcWithMerger)) =>
+              val merger =
+                srcWithMerger.merger.flatMap(MergerResolver.getMerger).get
+              builder.mergeWith(merger)(dict)
+          }
+
+        val finalBuilder =
+          request.modifiers.foldLeft(testBuilder) { (builder, modifierName) =>
+            ModifierResolver.getModifier(modifierName) match
+              case Some(modifier) => builder.useModifier(modifier)
+              case None           => builder
+          }
+
+        val fullTest = finalBuilder.build
+        val limitedWords = fullTest.words.take(request.wordCount)
+
+        TypingTest(
+          sources = fullTest.sources,
+          modifiers = fullTest.modifiers,
+          info = fullTest.info,
+          words = limitedWords
+        )
+      }
+    )(error => TestCreationFailed(error.getMessage))
 
   def getTestById(testId: String): AppResult[TestResponse] =
     AppResult
@@ -469,20 +445,13 @@ class TypingTestServiceImpl(
           .map(_.toOption.flatten),
         TestNotFound(testId)
       )
-      .map(ApiModels.persistedTestToResponse)
+      .map(TypingTestModels.persistedTestToResponse)
 
   def getTestsByProfileId(
       profileId: String
   ): AppResult[List[PersistedTypingTest]] =
     AppResult.attemptBlocking(
       IO.blocking(typingTestRepository.getByProfileId(profileId))
-    )(error => DatabaseError("tests lookup", error.getMessage))
-
-  def getTestsByLanguage(
-      language: String
-  ): AppResult[List[PersistedTypingTest]] =
-    AppResult.attemptBlocking(
-      IO.blocking(typingTestRepository.getByLanguage(language))
     )(error => DatabaseError("tests lookup", error.getMessage))
 
   def getLastTest(profileId: String): AppResult[LastTestResponse] =
@@ -500,7 +469,7 @@ class TypingTestServiceImpl(
         TestNotFound("No non-completed test found for profile")
       )
       response <- AppResult.pure(
-        ApiModels.persistedTestToLastTestResponse(persistedTest)
+        TypingTestModels.persistedTestToLastTestResponse(persistedTest)
       )
     yield response
 
@@ -519,7 +488,7 @@ class TypingTestServiceImpl(
         TestNotFound(testId)
       )
       _ <- validateTestNotCompleted(existingTest)
-      completedTest <- completeTest(existingTest, results)
+      completedTest <- completeTest(existingTest)
       updatedTest <- AppResult.fromOptionF(
         AppResult
           .attemptBlocking(
@@ -529,7 +498,10 @@ class TypingTestServiceImpl(
           .map(_.toOption.flatten),
         TestNotFound(testId)
       )
-      response <- AppResult.pure(ApiModels.persistedTestToResponse(updatedTest))
+      _ <- saveTestStatistics(testId, existingTest.profileId, results)
+      response <- AppResult.pure(
+        TypingTestModels.persistedTestToResponse(updatedTest)
+      )
     yield response
 
   def getAllDictionaries(): AppResult[DictionariesResponse] =
@@ -537,25 +509,19 @@ class TypingTestServiceImpl(
       .attemptBlocking(
         IO.blocking(dictionaryRepository.getAllDictionaries)
       )(error => DatabaseError("dictionaries lookup", error.getMessage))
-      .map(ApiModels.dictionariesToResponse)
+      .map(TypingTestModels.dictionariesToResponse)
 
-  def getLanguages(): AppResult[LanguagesResponse] =
-    AppResult
-      .attemptBlocking(
-        IO.blocking(dictionaryRepository.getAllDictionaries)
-      )(error => DatabaseError("languages lookup", error.getMessage))
-      .map(ApiModels.languagesToResponse)
-
-  def getDictionariesByLanguage(
-      language: String
-  ): AppResult[DictionariesResponse] =
-    AppResult
-      .attemptBlocking(
-        IO.blocking(dictionaryRepository.getDictionariesByLanguage(language))
-      )(error =>
-        DatabaseError("language dictionaries lookup", error.getMessage)
+  def getAllModifiers(): AppResult[ModifiersResponse] =
+    AppResult.pure(
+      TypingTestModels.modifiersToResponse(
+        ModifierResolver.getAvailableModifiers
       )
-      .map(ApiModels.dictionariesToResponse)
+    )
+
+  def getAllMergers(): AppResult[MergersResponse] =
+    AppResult.pure(
+      TypingTestModels.mergersToResponse(MergerResolver.getAvailableMergers)
+    )
 
   private def validateModifiers(modifierNames: List[String]): AppResult[Unit] =
     modifierNames.find(!ModifierResolver.isValidModifier(_)) match
@@ -581,57 +547,21 @@ class TypingTestServiceImpl(
     )
 
   private def getDictionary(
-      language: String,
       dictionaryName: String
   ): AppResult[Dictionary] =
     AppResult.fromOptionF(
       AppResult
         .attemptBlocking(
-          IO.blocking(
-            dictionaryRepository
-              .getDictionaryByLanguageAndName(language, dictionaryName)
-          )
+          IO.blocking(dictionaryRepository.getDictionaryByName(dictionaryName))
         )(error => DatabaseError("dictionary lookup", error.getMessage))
         .value
         .map(_.toOption.flatten),
-      DictionaryNotFound(language, dictionaryName)
+      DictionaryNotFound(dictionaryName)
     )
-
-  private def createTypingTest(
-      dictionary: Dictionary,
-      request: TestRequest
-  ): AppResult[TypingTest[String] & DefaultContext] =
-    AppResult.attemptBlocking(
-      IO.blocking {
-        val testBuilder = TypingTestFactory
-          .create[String]()
-          .useLoader(dictionaryLoader)
-          .useSource(dictionary)
-
-        val finalBuilder =
-          request.modifiers.foldLeft(testBuilder) { (builder, modifierName) =>
-            ModifierResolver.getModifier(modifierName) match
-              case Some(modifier) => builder.useModifier(modifier)
-              case None           => builder
-          }
-
-        val fullTest = finalBuilder.build
-        val limitedWords = fullTest.words.take(request.wordCount)
-
-        TypingTest(
-          sources = fullTest.sources,
-          modifiers = fullTest.modifiers,
-          info = fullTest.info,
-          words = limitedWords
-        )
-      }
-    )(error => TestCreationFailed(error.getMessage))
 
   private def saveTypingTest(
       test: TypingTest[String] & DefaultContext,
-      profileId: String,
-      language: String,
-      timeLimit: Option[Long]
+      profileId: String
   ): AppResult[PersistedTypingTest] =
     AppResult.attemptBlocking(
       IO.blocking {
@@ -640,9 +570,7 @@ class TypingTestServiceImpl(
           profileId = profileId,
           testData = test,
           createdAt = com.github.nscala_time.time.Imports.DateTime.now(),
-          language = language,
-          wordCount = test.words.length,
-          timeLimit = timeLimit
+          wordCount = test.words.length
         )
         typingTestRepository.create(persistedTest)
       }
@@ -660,21 +588,47 @@ class TypingTestServiceImpl(
   private def validateTestNotCompleted(
       test: PersistedTypingTest
   ): AppResult[Unit] =
-    if test.isCompleted then
+    if test.testData.info.completed then
       AppResult.raiseError(TestAlreadyCompleted(test.id.getOrElse("unknown")))
     else AppResult.pure(())
 
   private def completeTest(
-      test: PersistedTypingTest,
-      results: TestResultsRequest
+      test: PersistedTypingTest
   ): AppResult[PersistedTypingTest] =
     AppResult.pure(
       test.copy(
-        completedAt = Some(com.github.nscala_time.time.Imports.DateTime.now()),
-        accuracy = Some(results.accuracy),
-        rawAccuracy = Some(results.rawAccuracy),
-        testTime = Some(results.testTime),
-        errorCount = Some(results.errorCount),
-        errorWordIndices = Some(results.errorWordIndices)
+        testData = test.testData.copy(
+          info = CompletedInfo(
+            isCompleted = true,
+            completedAt = Some(DateTime.now())
+          )
+        )
       )
     )
+
+  private def saveTestStatistics(
+      testId: String,
+      profileId: String,
+      results: TestResultsRequest
+  ): AppResult[Unit] =
+    AppResult
+      .attemptBlocking(
+        IO.blocking {
+          val existingTest = typingTestRepository.get(testId).get
+          val wpm = calculateWpm(results.testTime, existingTest.wordCount)
+          val statistics = analytics.model.TestStatistics(
+            testId = testId,
+            userId = profileId,
+            wpm = wpm,
+            accuracy = results.accuracy,
+            errors = results.errorWordIndices,
+            timestamp = System.currentTimeMillis()
+          )
+          statisticsRepository.save(statistics)
+        }
+      )(error => StatisticsSavingFailed(error.getMessage))
+      .map(_ => ())
+
+  private def calculateWpm(testTimeMs: Long, wordCount: Int): Double =
+    if testTimeMs <= 0 then 0.0
+    else (wordCount.toDouble / testTimeMs.toDouble) * 60000.0

@@ -1,12 +1,14 @@
-package api.controllers
+package api.controllers.stats
 
-import api.models.*
-import api.services.{AnalyticsService, StatisticsService}
+import api.models.AppError
+import api.models.AppResult
+import api.models.stats.*
+import api.services.StatisticsService
 import cats.effect.IO
+import config.*
 
-class AnalyticsController(
-    statisticsService: StatisticsService,
-    analyticsService: AnalyticsService
+class StatsController(
+    statisticsService: StatisticsService
 ):
 
   def saveStatistics(
@@ -32,11 +34,6 @@ class AnalyticsController(
 
   def cleanRepository(): IO[Either[AppError, Boolean]] =
     handleServiceResult(statisticsService.cleanRepository())
-
-  def getUserAnalytics(
-      userId: String
-  ): IO[Either[AppError, AnalyticsResponse]] =
-    handleServiceResult(analyticsService.getUserAnalytics(userId))
 
   private def handleServiceResult[A](
       serviceCall: AppResult[A]

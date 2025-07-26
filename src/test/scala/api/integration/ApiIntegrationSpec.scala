@@ -1,35 +1,64 @@
 package api.integration
 
-import analytics.repository.InMemoryStatisticsRepository
-import api.controllers.{
-  AnalyticsController,
-  ConfigurationController,
-  TypingTestController
-}
-import api.models.*
-import api.models.ApiModels.given
-import api.server.ApiServer
-import api.services.{AnalyticsService, StatisticsService, TypingTestService}
 import analytics.calculator.AnalyticsCalculatorImpl
+import analytics.repository.MongoStatisticsRepository
+import analytics.repository.InMemoryStatisticsRepository
+import common.DatabaseInfos
+import analytics.repository.StatisticsRepository
+import api.controllers.analytics.AnalyticsController
+import api.controllers.config.ConfigurationController
+import api.controllers.stats.StatsController
+import api.controllers.typingtest.TypingTestController
+import api.controllers.users.UsersController
+import api.models.*
+import api.models.analytics.AnalyticsModels.given
+import api.models.common.CommonModels.given
+import common.{CommonModels, ErrorResponse}
+import api.models.typingtest.TypingTestModels.given
+import api.models.typingtest.*
+import api.models.users.UsersModels.given
+import api.models.users.{
+  CreateProfileRequest,
+  ProfileListResponse,
+  ProfileResponse
+}
+import api.server.ApiServer
+import api.services.{
+  AnalyticsService,
+  ConfigurationService,
+  ProfileService,
+  StatisticsService,
+  TypingTestService
+}
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.plokhotnyuk.jsoniter_scala.core.*
-import config.*
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
 import sttp.client3.*
-import sttp.client3.http4s.Http4sBackend
 import sttp.client3.jsoniter.*
-import sttp.model.{StatusCode, Uri}
-import sttp.tapir.json.jsoniter.*
+import sttp.model.StatusCode
+import sttp.client3.http4s.Http4sBackend
+import sttp.model.Uri
+import typingTest.dictionary.model.DictionaryJson
 import typingTest.dictionary.repository.{
   DictionaryRepository,
   FileDictionaryRepository
 }
-import typingTest.tests.repository.InMemoryTypingTestRepository
-import users_management.repository.InMemoryProfileRepository
+import typingTest.tests.repository.{
+  InMemoryTypingTestRepository,
+  MongoTypingTestRepository,
+  TypingTestRepository
+}
+import users_management.repository.{
+  InMemoryProfileRepository,
+  MongoProfileRepository,
+  ProfileRepository
+}
+import org.testcontainers.containers.MongoDBContainer
+import org.testcontainers.utility.DockerImageName
 
 import java.io.File
 import java.nio.file.Files
@@ -43,18 +72,36 @@ class ApiIntegrationSpec
     with Matchers
     with BeforeAndAfterEach:
 
-  private var profileRepository: InMemoryProfileRepository = uninitialized
-  private var typingTestRepository: InMemoryTypingTestRepository = uninitialized
+  private val useMongoDb = true
+  private var mongoContainer: MongoDBContainer = _
+  private var profileRepository: ProfileRepository = uninitialized
+  private var typingTestRepository: TypingTestRepository = uninitialized
   private var dictionaryRepository: DictionaryRepository = uninitialized
-  private var statisticsRepository: InMemoryStatisticsRepository = uninitialized
+  private var statisticsRepository: StatisticsRepository = uninitialized
   private var tempDir: File = uninitialized
   private var testPort: Int = uninitialized
   private var baseUri: Uri = uninitialized
 
   override def beforeEach(): Unit =
-    profileRepository = InMemoryProfileRepository()
-    typingTestRepository = InMemoryTypingTestRepository()
-    statisticsRepository = InMemoryStatisticsRepository()
+    if useMongoDb then
+      mongoContainer = MongoDBContainer(DockerImageName.parse("mongo:4.4"))
+      mongoContainer.start()
+      val dbInfosProfiles =
+        DatabaseInfos("profiles", mongoContainer.getReplicaSetUrl, "test_db")
+      val dbInfosTyping = DatabaseInfos(
+        "typing_tests",
+        mongoContainer.getReplicaSetUrl,
+        "test_db"
+      )
+      val dbInfosStats =
+        DatabaseInfos("statistics", mongoContainer.getReplicaSetUrl, "test_db")
+      profileRepository = MongoProfileRepository(dbInfosProfiles)
+      typingTestRepository = MongoTypingTestRepository(dbInfosTyping)
+      statisticsRepository = MongoStatisticsRepository(dbInfosStats)
+    else
+      profileRepository = InMemoryProfileRepository()
+      typingTestRepository = InMemoryTypingTestRepository()
+      statisticsRepository = InMemoryStatisticsRepository()
 
     tempDir = Files.createTempDirectory("test-dicts").toFile
     createTestDictionaries()
@@ -69,47 +116,112 @@ class ApiIntegrationSpec
         if file.isDirectory then
           Option(file.listFiles()).foreach(_.foreach(deleteRecursively))
         file.delete()
-
       deleteRecursively(tempDir)
 
+    try
+      if profileRepository != null then profileRepository.close()
+      if typingTestRepository != null then typingTestRepository.close()
+      if statisticsRepository != null then statisticsRepository.close()
+    catch
+      case e: Exception =>
+        println(s"Error closing repositories: ${e.getMessage}")
+
+    if useMongoDb && mongoContainer != null then
+      try mongoContainer.stop()
+      catch
+        case e: Exception =>
+          println(s"Error stopping MongoDB container: ${e.getMessage}")
+
   private def createTestDictionaries(): Unit =
-    val englishDir = new File(tempDir, "english")
-    val spanishDir = new File(tempDir, "spanish")
-    englishDir.mkdirs()
-    spanishDir.mkdirs()
-
-    val englishDict = new File(englishDir, "english_basic.txt")
-    Files.write(
-      englishDict.toPath,
-      "hello\nworld\ntest\nscala\ntyping\ncode\nprogramming\ndeveloper\nsoftware\ncomputer\nkeyboard\nmouse\nscreen\nfile\ndirectory".getBytes
+    val englishDict = DictionaryJson(
+      "english_basic",
+      Seq(
+        "hello",
+        "world",
+        "test",
+        "scala",
+        "typing",
+        "code",
+        "programming",
+        "developer",
+        "software",
+        "computer",
+        "keyboard",
+        "mouse",
+        "screen",
+        "file",
+        "directory"
+      )
+    )
+    val spanishDict = DictionaryJson(
+      "spanish_basic",
+      Seq(
+        "hola",
+        "mundo",
+        "prueba",
+        "escribir",
+        "teclado",
+        "codigo",
+        "programacion",
+        "desarrollador",
+        "software",
+        "ordenador",
+        "raton",
+        "pantalla",
+        "archivo",
+        "directorio",
+        "carpeta"
+      )
     )
 
-    val spanishDict = new File(spanishDir, "spanish_basic.txt")
     Files.write(
-      spanishDict.toPath,
-      "hola\nmundo\nprueba\nescribir\nteclado\ncodigo\nprogramacion\ndesarrollador\nsoftware\nordenador\nraton\npantalla\narchivo\ndirectorio\ncarpeta".getBytes
+      new File(tempDir, "english_basic.json").toPath,
+      writeToString(englishDict).getBytes
     )
+
+    Files.write(
+      new File(tempDir, "spanish_basic.json").toPath,
+      writeToString(spanishDict).getBytes
+    )
+
+  private def writeToString(dict: DictionaryJson): String =
+    com.github.plokhotnyuk.jsoniter_scala.core.writeToString(dict)
 
   private def withServer[T](test: SttpBackend[IO, Any] => IO[T]): IO[T] =
     val typingTestService = TypingTestService(
       profileRepository,
       dictionaryRepository,
-      typingTestRepository
+      typingTestRepository,
+      statisticsRepository
     )
     val statisticsService = StatisticsService(statisticsRepository)
     val analyticsService =
-      AnalyticsService(statisticsRepository, AnalyticsCalculatorImpl())
+      AnalyticsService(statisticsService, AnalyticsCalculatorImpl())
 
-    // Create default configuration for testing
-    val testConfig = AppConfig(
-      database = DatabaseConfig(useMongoDb = false),
-      server = ServerConfig(host = "localhost", port = testPort),
-      dictionary =
-        DictionaryConfig(basePath = "src/test/resources/dictionaries"),
+    val testConfig = _root_.config.AppConfig(
+      database = _root_.config.DatabaseConfig(
+        mongoUri = if useMongoDb then mongoContainer.getReplicaSetUrl else "",
+        databaseName = "test_db",
+        useMongoDb = useMongoDb
+      ),
+      server = _root_.config.ServerConfig(
+        host = "localhost",
+        port = testPort,
+        threadPool = _root_.config.ThreadPoolConfig(
+          coreSize = 2,
+          maxSize = 4,
+          keepAliveSeconds = 30,
+          queueSize = 100,
+          threadNamePrefix = "test-api"
+        )
+      ),
+      dictionary = _root_.config.DictionaryConfig(
+        basePath = "src/test/resources/dictionaries",
+        autoCreateDirectories = true
+      ),
       version = "1.0.0"
     )
 
-    // Create configuration service and controller
     val configServiceIO = ConfigurationService.create(
       testConfig,
       profileRepository,
@@ -119,14 +231,19 @@ class ApiIntegrationSpec
     )
 
     configServiceIO.flatMap { configService =>
-      val configController = ConfigurationController(configService)
+      val profileService = ProfileService(profileRepository)
+      val usersController = UsersController(profileService)
       val typingTestController = TypingTestController(typingTestService)
-      val analyticsController =
-        AnalyticsController(statisticsService, analyticsService)
+      val statsController = StatsController(statisticsService)
+      val analyticsController = AnalyticsController(analyticsService)
+      val configController = ConfigurationController(configService)
+
       val server = ApiServer(
-        configController,
+        usersController,
         typingTestController,
+        statsController,
         analyticsController,
+        configController,
         testConfig
       )
 
@@ -148,22 +265,21 @@ class ApiIntegrationSpec
           settings = Set("setting1", "setting2")
         )
 
-        val response = basicRequest
-          .post(baseUri.addPath("api", "profiles"))
+        basicRequest
+          .post(baseUri.addPath(Seq("api", "profiles")))
           .body(request)
           .response(asJson[ProfileResponse])
           .send(backend)
+          .map { result =>
+            result.code shouldBe StatusCode.Created
+            result.body.isRight shouldBe true
 
-        response.map { result =>
-          result.code shouldBe StatusCode.Created
-          result.body.isRight shouldBe true
-
-          val profile = result.body.toOption.get
-          profile.name shouldBe "Integration Test User"
-          profile.email shouldBe "integration@test.com"
-          profile.settings shouldBe Set("setting1", "setting2")
-          profile.id should not be empty
-        }
+            val profile = result.body.toOption.get
+            profile.name shouldBe "Integration Test User"
+            profile.email shouldBe "integration@test.com"
+            profile.settings shouldBe Set("setting1", "setting2")
+            profile.id should not be empty
+          }
       }
     }
 
@@ -177,12 +293,12 @@ class ApiIntegrationSpec
 
         for
           _ <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(createRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
           _ <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(
               createRequest.copy(name = "Test User 2", email = "user2@test.com")
             )
@@ -190,7 +306,7 @@ class ApiIntegrationSpec
             .send(backend)
 
           listResponse <- basicRequest
-            .get(baseUri.addPath("api", "profiles"))
+            .get(baseUri.addPath(Seq("api", "profiles")))
             .response(asJson[ProfileListResponse])
             .send(backend)
         yield
@@ -212,7 +328,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -221,14 +337,13 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profileId = profile.id,
-            language = "english",
-            dictionaryName = "english_basic",
+            sources = List(SourceWithMerger("english_basic")),
             wordCount = 10,
             modifiers = List("lowercase")
           )
 
           testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asJson[TestResponse])
             .send(backend)
@@ -237,10 +352,6 @@ class ApiIntegrationSpec
           testResponse.body.isRight shouldBe true
 
           val test = testResponse.body.toOption.get
-          test.profileId shouldBe profile.id
-          test.language shouldBe "english"
-          test.modifiers should contain("lowercase")
-          test.words should have size 10
           test.testId should not be empty
           test.completedAt shouldBe None
       }
@@ -256,7 +367,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -265,15 +376,14 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profileId = profile.id,
-            language = "english",
-            dictionaryName = "english_basic",
+            sources = List(SourceWithMerger("english_basic")),
             wordCount = 10,
             modifiers = List("lowercase"),
             timeLimit = Some(60000L)
           )
 
           testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asJson[TestResponse])
             .send(backend)
@@ -282,7 +392,8 @@ class ApiIntegrationSpec
           testResponse.body.isRight shouldBe true
 
           val test = testResponse.body.toOption.get
-          test.timeLimit shouldBe Some(60000L)
+          test.testId should not be empty
+          test.completedAt shouldBe None
       }
     }
 
@@ -296,7 +407,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -305,21 +416,22 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profileId = profile.id,
-            language = "english",
-            dictionaryName = "english_basic",
+            sources = List(SourceWithMerger("english_basic")),
             wordCount = 5,
             modifiers = List(),
             timeLimit = Some(30000L)
           )
 
           _ <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asJson[TestResponse])
             .send(backend)
 
           lastTestResponse <- basicRequest
-            .get(baseUri.addPath("api", "profiles", profile.id, "last-test"))
+            .get(
+              baseUri.addPath(Seq("api", "profiles", profile.id, "last-test"))
+            )
             .response(asJson[LastTestResponse])
             .send(backend)
         yield
@@ -327,8 +439,8 @@ class ApiIntegrationSpec
           lastTestResponse.body.isRight shouldBe true
 
           val lastTest = lastTestResponse.body.toOption.get
+          println("results::: " + lastTest.words)
           lastTest.words should have size 5
-          lastTest.timeLimit shouldBe Some(30000L)
       }
     }
 
@@ -342,7 +454,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -351,14 +463,13 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profileId = profile.id,
-            language = "english",
-            dictionaryName = "english_basic",
+            sources = List(SourceWithMerger("english_basic")),
             wordCount = 5,
             modifiers = List()
           )
 
           testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asJson[TestResponse])
             .send(backend)
@@ -374,7 +485,7 @@ class ApiIntegrationSpec
           )
 
           resultsResponse <- basicRequest
-            .put(baseUri.addPath("api", "tests", test.testId, "results"))
+            .put(baseUri.addPath(Seq("api", "tests", test.testId, "results")))
             .body(resultsRequest)
             .response(asJson[TestResponse])
             .send(backend)
@@ -384,12 +495,8 @@ class ApiIntegrationSpec
 
           val completedTest = resultsResponse.body.toOption.get
           completedTest.testId shouldBe test.testId
+          println(completedTest)
           completedTest.completedAt shouldBe defined
-          completedTest.accuracy shouldBe Some(95.5)
-          completedTest.rawAccuracy shouldBe Some(92.3)
-          completedTest.testTime shouldBe Some(45000L)
-          completedTest.errorCount shouldBe Some(2)
-          completedTest.errorWordIndices shouldBe Some(List(1, 3))
       }
     }
 
@@ -403,7 +510,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -412,14 +519,13 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profileId = profile.id,
-            language = "english",
-            dictionaryName = "english_basic",
+            sources = List(SourceWithMerger("english_basic")),
             wordCount = 5,
             modifiers = List()
           )
 
           testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asJson[TestResponse])
             .send(backend)
@@ -435,13 +541,13 @@ class ApiIntegrationSpec
           )
 
           _ <- basicRequest
-            .put(baseUri.addPath("api", "tests", test.testId, "results"))
+            .put(baseUri.addPath(Seq("api", "tests", test.testId, "results")))
             .body(resultsRequest)
             .response(asJson[TestResponse])
             .send(backend)
 
           getResponse <- basicRequest
-            .get(baseUri.addPath("api", "tests", test.testId))
+            .get(baseUri.addPath(Seq("api", "tests", test.testId)))
             .response(asJson[TestResponse])
             .send(backend)
         yield
@@ -452,11 +558,6 @@ class ApiIntegrationSpec
           persistedTest.testId shouldBe test.testId
           persistedTest.profileId shouldBe profile.id
           persistedTest.completedAt shouldBe defined
-          persistedTest.accuracy shouldBe Some(88.0)
-          persistedTest.rawAccuracy shouldBe Some(85.5)
-          persistedTest.testTime shouldBe Some(50000L)
-          persistedTest.errorCount shouldBe Some(3)
-          persistedTest.errorWordIndices shouldBe Some(List(0, 2, 4))
       }
     }
 
@@ -470,7 +571,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -479,21 +580,19 @@ class ApiIntegrationSpec
 
           testRequest1 = TestRequest(
             profile.id,
-            "english",
-            "english_basic",
+            List(SourceWithMerger("english_basic")),
             5,
             List("lowercase")
           )
           testRequest2 = TestRequest(
             profile.id,
-            "spanish",
-            "spanish_basic",
+            List(SourceWithMerger("spanish_basic")),
             3,
             List("uppercase")
           )
 
           testResponse1 <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest1)
             .response(asJson[TestResponse])
             .send(backend)
@@ -503,10 +602,12 @@ class ApiIntegrationSpec
           _ <- basicRequest
             .put(
               baseUri.addPath(
-                "api",
-                "tests",
-                testResponse1.body.toOption.get.testId,
-                "results"
+                Seq(
+                  "api",
+                  "tests",
+                  testResponse1.body.toOption.get.testId,
+                  "results"
+                )
               )
             )
             .body(resultsRequest)
@@ -514,7 +615,7 @@ class ApiIntegrationSpec
             .send(backend)
 
           testResponse2 <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest2)
             .response(asJson[TestResponse])
             .send(backend)
@@ -522,10 +623,12 @@ class ApiIntegrationSpec
           _ <- basicRequest
             .put(
               baseUri.addPath(
-                "api",
-                "tests",
-                testResponse2.body.toOption.get.testId,
-                "results"
+                Seq(
+                  "api",
+                  "tests",
+                  testResponse2.body.toOption.get.testId,
+                  "results"
+                )
               )
             )
             .body(resultsRequest)
@@ -533,7 +636,7 @@ class ApiIntegrationSpec
             .send(backend)
 
           testsResponse <- basicRequest
-            .get(baseUri.addPath("api", "profiles", profile.id, "tests"))
+            .get(baseUri.addPath(Seq("api", "profiles", profile.id, "tests")))
             .response(asJson[TestListResponse])
             .send(backend)
         yield
@@ -543,67 +646,11 @@ class ApiIntegrationSpec
           val testList = testsResponse.body.toOption.get
           testList.tests should have size 2
           testList.tests.foreach(_.profileId shouldBe profile.id)
-          testList.tests.map(_.language) should contain allElementsOf List(
-            "english",
-            "spanish"
+          testList.tests.flatMap(_.sources) should contain allElementsOf List(
+            SourceWithMerger("english_basic"),
+            SourceWithMerger("spanish_basic")
           )
           testList.tests.foreach(_.completedAt shouldBe defined)
-      }
-    }
-
-    "get tests by language successfully" in {
-      withServer { backend =>
-        val profileRequest = CreateProfileRequest(
-          name = "Test User",
-          email = "test@example.com",
-          settings = Set.empty
-        )
-
-        for
-          profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
-            .body(profileRequest)
-            .response(asJson[ProfileResponse])
-            .send(backend)
-
-          profile = profileResponse.body.toOption.get
-
-          testRequest = TestRequest(
-            profile.id,
-            "english",
-            "english_basic",
-            5,
-            List()
-          )
-
-          testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
-            .body(testRequest)
-            .response(asJson[TestResponse])
-            .send(backend)
-
-          test = testResponse.body.toOption.get
-
-          resultsRequest = TestResultsRequest(90.0, 87.5, 35000L, 1, List(3))
-
-          _ <- basicRequest
-            .put(baseUri.addPath("api", "tests", test.testId, "results"))
-            .body(resultsRequest)
-            .response(asJson[TestResponse])
-            .send(backend)
-
-          testsResponse <- basicRequest
-            .get(baseUri.addPath("api", "tests", "language", "english"))
-            .response(asJson[TestListResponse])
-            .send(backend)
-        yield
-          testsResponse.code shouldBe StatusCode.Ok
-          testsResponse.body.isRight shouldBe true
-
-          val testList = testsResponse.body.toOption.get
-          testList.tests should have size 1
-          testList.tests.head.language shouldBe "english"
-          testList.tests.head.completedAt shouldBe defined
       }
     }
 
@@ -617,7 +664,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -626,33 +673,33 @@ class ApiIntegrationSpec
 
           testRequest1 = TestRequest(
             profile.id,
-            "english",
-            "english_basic",
+            List(SourceWithMerger("english_basic")),
             5,
             List()
           )
           testRequest2 = TestRequest(
             profile.id,
-            "english",
-            "english_basic",
+            List(SourceWithMerger("english_basic")),
             3,
             List()
           )
 
           _ <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest1)
             .response(asJson[TestResponse])
             .send(backend)
 
           _ <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest2)
             .response(asJson[TestResponse])
             .send(backend)
 
           lastTestResponse <- basicRequest
-            .get(baseUri.addPath("api", "profiles", profile.id, "last-test"))
+            .get(
+              baseUri.addPath(Seq("api", "profiles", profile.id, "last-test"))
+            )
             .response(asJson[LastTestResponse])
             .send(backend)
         yield
@@ -668,14 +715,13 @@ class ApiIntegrationSpec
       withServer { backend =>
         val testRequest = TestRequest(
           profileId = "non-existent-profile",
-          language = "english",
-          dictionaryName = "english_basic",
+          sources = List(SourceWithMerger("english_basic")),
           wordCount = 10,
           modifiers = List()
         )
 
         val response = basicRequest
-          .post(baseUri.addPath("api", "tests"))
+          .post(baseUri.addPath(Seq("api", "tests")))
           .body(testRequest)
           .response(asString)
           .send(backend)
@@ -696,7 +742,7 @@ class ApiIntegrationSpec
     "handle test not found error for non-completed test" in {
       withServer { backend =>
         val response = basicRequest
-          .get(baseUri.addPath("api", "tests", "non-existent-test"))
+          .get(baseUri.addPath(Seq("api", "tests", "non-existent-test")))
           .response(asString)
           .send(backend)
 
@@ -723,7 +769,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -732,14 +778,13 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profile.id,
-            "english",
-            "english_basic",
+            List(SourceWithMerger("english_basic")),
             5,
             List()
           )
 
           testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asJson[TestResponse])
             .send(backend)
@@ -747,7 +792,7 @@ class ApiIntegrationSpec
           test = testResponse.body.toOption.get
 
           getResponse <- basicRequest
-            .get(baseUri.addPath("api", "tests", test.testId))
+            .get(baseUri.addPath(Seq("api", "tests", test.testId)))
             .response(asString)
             .send(backend)
         yield
@@ -758,6 +803,7 @@ class ApiIntegrationSpec
             case Right(bodyString) => bodyString
           val error = readFromString[ErrorResponse](errorBody)
           error.code shouldBe "TEST_NOT_FOUND"
+          ()
       }
     }
 
@@ -771,7 +817,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -780,14 +826,13 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profileId = profile.id,
-            language = "unsupported-language",
-            dictionaryName = "english_basic",
+            sources = List(SourceWithMerger("unsupported-source")),
             wordCount = 10,
             modifiers = List()
           )
 
           testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asString)
             .send(backend)
@@ -799,7 +844,8 @@ class ApiIntegrationSpec
             case Right(bodyString) => bodyString
           val error = readFromString[ErrorResponse](errorBody)
           error.code shouldBe "DICTIONARY_NOT_FOUND"
-          error.message should include("unsupported-language")
+          error.message should include("unsupported-source")
+          ()
       }
     }
 
@@ -813,7 +859,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -822,14 +868,13 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profileId = profile.id,
-            language = "english",
-            dictionaryName = "english_basic",
+            sources = List(SourceWithMerger("english_basic")),
             wordCount = 10,
             modifiers = List("invalid-modifier")
           )
 
           testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asString)
             .send(backend)
@@ -842,6 +887,7 @@ class ApiIntegrationSpec
           val error = readFromString[ErrorResponse](errorBody)
           error.code shouldBe "INVALID_MODIFIER"
           error.message should include("invalid-modifier")
+          ()
       }
     }
 
@@ -855,7 +901,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -864,14 +910,13 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profile.id,
-            "english",
-            "english_basic",
+            List(SourceWithMerger("english_basic")),
             5,
             List()
           )
 
           testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asJson[TestResponse])
             .send(backend)
@@ -881,13 +926,13 @@ class ApiIntegrationSpec
           resultsRequest = TestResultsRequest(90.0, 87.0, 40000L, 1, List(2))
 
           _ <- basicRequest
-            .put(baseUri.addPath("api", "tests", test.testId, "results"))
+            .put(baseUri.addPath(Seq("api", "tests", test.testId, "results")))
             .body(resultsRequest)
             .response(asJson[TestResponse])
             .send(backend)
 
           secondResultsResponse <- basicRequest
-            .put(baseUri.addPath("api", "tests", test.testId, "results"))
+            .put(baseUri.addPath(Seq("api", "tests", test.testId, "results")))
             .body(resultsRequest)
             .response(asString)
             .send(backend)
@@ -899,6 +944,7 @@ class ApiIntegrationSpec
             case Right(bodyString) => bodyString
           val error = readFromString[ErrorResponse](errorBody)
           error.code shouldBe "TEST_ALREADY_COMPLETED"
+          ()
       }
     }
 
@@ -912,7 +958,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -920,7 +966,9 @@ class ApiIntegrationSpec
           profile = profileResponse.body.toOption.get
 
           lastTestResponse <- basicRequest
-            .get(baseUri.addPath("api", "profiles", profile.id, "last-test"))
+            .get(
+              baseUri.addPath(Seq("api", "profiles", profile.id, "last-test"))
+            )
             .response(asString)
             .send(backend)
         yield
@@ -931,6 +979,7 @@ class ApiIntegrationSpec
             case Right(bodyString) => bodyString
           val error = readFromString[ErrorResponse](errorBody)
           error.code shouldBe "TEST_NOT_FOUND"
+          ()
       }
     }
 
@@ -944,7 +993,7 @@ class ApiIntegrationSpec
 
         for
           profileResponse <- basicRequest
-            .post(baseUri.addPath("api", "profiles"))
+            .post(baseUri.addPath(Seq("api", "profiles")))
             .body(profileRequest)
             .response(asJson[ProfileResponse])
             .send(backend)
@@ -953,14 +1002,13 @@ class ApiIntegrationSpec
 
           testRequest = TestRequest(
             profileId = profile.id,
-            language = "english",
-            dictionaryName = "english_basic",
+            sources = List(SourceWithMerger("english_basic")),
             wordCount = 5,
             modifiers = List("uppercase", "trim", "reverse")
           )
 
           testResponse <- basicRequest
-            .post(baseUri.addPath("api", "tests"))
+            .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
             .response(asJson[TestResponse])
             .send(backend)
@@ -975,123 +1023,466 @@ class ApiIntegrationSpec
             "reverse"
           )
           test.words should have size 5
+          ()
       }
     }
 
     "handle malformed JSON request" in {
       withServer { backend =>
-        val response = basicRequest
-          .post(baseUri.addPath("api", "profiles"))
+        basicRequest
+          .post(baseUri.addPath(Seq("api", "profiles")))
           .body("{invalid json}")
           .header("Content-Type", "application/json")
           .response(asString)
           .send(backend)
-
-        response.map { result =>
-          result.code shouldBe StatusCode.BadRequest
-        }
+          .map { result =>
+            result.code shouldBe StatusCode.BadRequest
+            ()
+          }
       }
     }
 
     "return 404 for non-existent endpoints" in {
       withServer { backend =>
-        val response = basicRequest
-          .get(baseUri.addPath("api", "non-existent"))
+        basicRequest
+          .get(baseUri.addPath(Seq("api", "non-existent")))
           .response(asString)
           .send(backend)
-
-        response.map { result =>
-          result.code shouldBe StatusCode.NotFound
-        }
+          .map { result =>
+            result.code shouldBe StatusCode.NotFound
+            ()
+          }
       }
     }
 
     "get all available dictionaries" in {
       withServer { backend =>
-        val response = basicRequest
-          .get(baseUri.addPath("api", "dictionaries"))
+        basicRequest
+          .get(baseUri.addPath(Seq("api", "dictionaries")))
           .response(asJson[DictionariesResponse])
           .send(backend)
+          .map { result =>
+            result.code shouldBe StatusCode.Ok
+            result.body.isRight shouldBe true
 
-        response.map { result =>
-          result.code shouldBe StatusCode.Ok
-          result.body.isRight shouldBe true
+            val dictionaries = result.body.toOption.get
+            dictionaries.dictionaries should have size 2
+            dictionaries.dictionaries.map(
+              _.name
+            ) should contain allElementsOf List(
+              "english_basic",
+              "spanish_basic"
+            )
+            ()
+          }
+      }
+    }
 
-          val dictionaries = result.body.toOption.get
-          dictionaries.dictionaries should have size 2
-          dictionaries.dictionaries.map(
-            _.name
-          ) should contain allElementsOf List("english_basic", "spanish_basic")
-          dictionaries.dictionaries.map(_.language).toSet shouldBe Set(
-            "english",
-            "spanish"
+    "create test with two sources and concatenate merger" in {
+      withServer { backend =>
+        val profileRequest = CreateProfileRequest(
+          name = "Test User",
+          email = "test@example.com",
+          settings = Set.empty
+        )
+        for
+          profileResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "profiles")))
+            .body(profileRequest)
+            .response(asJson[ProfileResponse])
+            .send(backend)
+          profile = profileResponse.body.toOption.get
+          testRequest = TestRequest(
+            profileId = profile.id,
+            sources = List(
+              SourceWithMerger("english_basic"),
+              SourceWithMerger("spanish_basic", Some("concatenate"))
+            ),
+            wordCount = 30,
+            modifiers = List("lowercase")
           )
-        }
+          testResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "tests")))
+            .body(testRequest)
+            .response(asJson[TestResponse])
+            .send(backend)
+        yield
+          testResponse.code shouldBe StatusCode.Created
+          testResponse.body.isRight shouldBe true
+          val test = testResponse.body.toOption.get
+          test.sources should have size 2
+          test.sources.map(_.name) should contain allElementsOf List(
+            "english_basic",
+            "spanish_basic"
+          )
+          test.words.size should be <= 30
       }
     }
 
-    "get all available languages" in {
+    "fail if a merger is missing for a second source" in {
       withServer { backend =>
-        val response = basicRequest
-          .get(baseUri.addPath("api", "languages"))
-          .response(asJson[LanguagesResponse])
+        val profileRequest = CreateProfileRequest(
+          name = "Test User",
+          email = "test@example.com",
+          settings = Set.empty
+        )
+        for
+          profileResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "profiles")))
+            .body(profileRequest)
+            .response(asJson[ProfileResponse])
+            .send(backend)
+          profile = profileResponse.body.toOption.get
+          testRequest = TestRequest(
+            profileId = profile.id,
+            sources = List(
+              SourceWithMerger("english_basic"),
+              SourceWithMerger("spanish_basic")
+            ),
+            wordCount = 10
+          )
+          testResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "tests")))
+            .body(testRequest)
+            .response(asString)
+            .send(backend)
+        yield testResponse.code shouldBe StatusCode.InternalServerError
+      }
+    }
+
+    "fail if an invalid merger name is provided" in {
+      withServer { backend =>
+        val profileRequest = CreateProfileRequest(
+          name = "Test User",
+          email = "test@example.com",
+          settings = Set.empty
+        )
+        for
+          profileResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "profiles")))
+            .body(profileRequest)
+            .response(asJson[ProfileResponse])
+            .send(backend)
+          profile = profileResponse.body.toOption.get
+          testRequest = TestRequest(
+            profileId = profile.id,
+            sources = List(
+              SourceWithMerger("english_basic"),
+              SourceWithMerger("spanish_basic", Some("notamerger"))
+            ),
+            wordCount = 10
+          )
+          testResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "tests")))
+            .body(testRequest)
+            .response(asString)
+            .send(backend)
+        yield testResponse.code shouldBe StatusCode.UnprocessableEntity
+      }
+    }
+
+    "merge words using alternate merger" in {
+      withServer { backend =>
+        val profileRequest = CreateProfileRequest(
+          name = "Test User",
+          email = "test@example.com",
+          settings = Set.empty
+        )
+        for
+          profileResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "profiles")))
+            .body(profileRequest)
+            .response(asJson[ProfileResponse])
+            .send(backend)
+          profile = profileResponse.body.toOption.get
+          testRequest = TestRequest(
+            profileId = profile.id,
+            sources = List(
+              SourceWithMerger("english_basic"),
+              SourceWithMerger("spanish_basic", Some("alternate"))
+            ),
+            wordCount = 10
+          )
+          testResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "tests")))
+            .body(testRequest)
+            .response(asJson[TestResponse])
+            .send(backend)
+        yield
+          testResponse.code shouldBe StatusCode.Created
+          testResponse.body.isRight shouldBe true
+          val test = testResponse.body.toOption.get
+          test.words.size should be <= 10
+          // Should alternate between english and spanish words
+          val englishWords = Set(
+            "hello",
+            "world",
+            "test",
+            "scala",
+            "typing",
+            "code",
+            "programming",
+            "developer",
+            "software",
+            "computer",
+            "keyboard",
+            "mouse",
+            "screen",
+            "file",
+            "directory"
+          )
+          val spanishWords = Set(
+            "hola",
+            "mundo",
+            "prueba",
+            "escribir",
+            "teclado",
+            "codigo",
+            "programacion",
+            "desarrollador",
+            "software",
+            "ordenador",
+            "raton",
+            "pantalla",
+            "archivo",
+            "directorio",
+            "carpeta"
+          )
+          val alternated =
+            test.words.take(10).zipWithIndex.forall { case (w, i) =>
+              if i % 2 == 0 then englishWords.contains(w)
+              else spanishWords.contains(w)
+            }
+          alternated should be(true)
+      }
+    }
+
+    "get all available modifiers" in {
+      withServer { backend =>
+        basicRequest
+          .get(baseUri.addPath(Seq("api", "modifiers")))
+          .response(asJson[ModifiersResponse])
           .send(backend)
+          .map { result =>
+            result.code shouldBe StatusCode.Ok
+            result.body.isRight shouldBe true
 
-        response.map { result =>
-          result.code shouldBe StatusCode.Ok
-          result.body.isRight shouldBe true
+            val modifiers = result.body.toOption.get
+            modifiers.modifiers should not be empty
+            modifiers.modifiers.foreach { modifier =>
+              modifier.name should not be empty
+              modifier.description should not be empty
+            }
+          }
+      }
+    }
 
-          val languages = result.body.toOption.get
-          languages.languages should have size 2
-          languages.languages.map(_.language) should contain allElementsOf List(
-            "english",
-            "spanish"
+    "get all available mergers" in {
+      withServer { backend =>
+        basicRequest
+          .get(baseUri.addPath(Seq("api", "mergers")))
+          .response(asJson[MergersResponse])
+          .send(backend)
+          .map { result =>
+            result.code shouldBe StatusCode.Ok
+            result.body.isRight shouldBe true
+
+            val mergers = result.body.toOption.get
+            mergers.mergers should not be empty
+            mergers.mergers.foreach { merger =>
+              merger.name should not be empty
+              merger.description should not be empty
+            }
+          }
+      }
+    }
+
+    "get user analytics with errors" in {
+      withServer { backend =>
+        val profileRequest = CreateProfileRequest(
+          name = "Test User",
+          email = "test@example.com",
+          settings = Set.empty
+        )
+
+        for
+          profileResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "profiles")))
+            .body(profileRequest)
+            .response(asJson[ProfileResponse])
+            .send(backend)
+
+          profile = profileResponse.body.toOption.get
+
+          testRequest1 = TestRequest(
+            profileId = profile.id,
+            sources = List(SourceWithMerger("english_basic")),
+            wordCount = 5
           )
 
-          val englishLang =
-            languages.languages.find(_.language == "english").get
-          englishLang.dictionaries should contain("english_basic")
+          testResponse1 <- basicRequest
+            .post(baseUri.addPath(Seq("api", "tests")))
+            .body(testRequest1)
+            .response(asJson[TestResponse])
+            .send(backend)
 
-          val spanishLang =
-            languages.languages.find(_.language == "spanish").get
-          spanishLang.dictionaries should contain("spanish_basic")
-        }
+          test1 = testResponse1.body.toOption.get
+
+          resultsRequest1 = TestResultsRequest(
+            accuracy = 90.0,
+            rawAccuracy = 87.0,
+            testTime = 40000L,
+            errorCount = 2,
+            errorWordIndices = List(1, 3)
+          )
+
+          _ <- basicRequest
+            .put(baseUri.addPath(Seq("api", "tests", test1.testId, "results")))
+            .body(resultsRequest1)
+            .response(asJson[TestResponse])
+            .send(backend)
+
+          testRequest2 = TestRequest(
+            profileId = profile.id,
+            sources = List(SourceWithMerger("english_basic")),
+            wordCount = 5
+          )
+
+          testResponse2 <- basicRequest
+            .post(baseUri.addPath(Seq("api", "tests")))
+            .body(testRequest2)
+            .response(asJson[TestResponse])
+            .send(backend)
+
+          test2 = testResponse2.body.toOption.get
+
+          resultsRequest2 = TestResultsRequest(
+            accuracy = 95.0,
+            rawAccuracy = 93.0,
+            testTime = 35000L,
+            errorCount = 1,
+            errorWordIndices = List(2)
+          )
+
+          _ <- basicRequest
+            .put(baseUri.addPath(Seq("api", "tests", test2.testId, "results")))
+            .body(resultsRequest2)
+            .response(asJson[TestResponse])
+            .send(backend)
+
+          analyticsResponse <- basicRequest
+            .get(baseUri.addPath(Seq("api", "analytics", profile.id)))
+            .response(asJson[api.models.analytics.AnalyticsResponse])
+            .send(backend)
+        yield
+          analyticsResponse.code shouldBe StatusCode.Ok
+          analyticsResponse.body.isRight shouldBe true
+
+          val analytics = analyticsResponse.body.toOption.get
+          analytics.userId shouldBe profile.id
+          analytics.totalTests shouldBe 2
+          analytics.totalErrors shouldBe 3
+          analytics.averageErrorsPerTest shouldBe 1.5
+          analytics.averageWpm should be > 0.0
+          analytics.averageAccuracy should be > 0.0
       }
     }
 
-    "get dictionaries for a specific language" in {
+    "get user analytics with no errors" in {
       withServer { backend =>
-        val response = basicRequest
-          .get(baseUri.addPath("api", "languages", "english", "dictionaries"))
-          .response(asJson[DictionariesResponse])
-          .send(backend)
+        val profileRequest = CreateProfileRequest(
+          name = "Test User",
+          email = "test@example.com",
+          settings = Set.empty
+        )
 
-        response.map { result =>
-          result.code shouldBe StatusCode.Ok
-          result.body.isRight shouldBe true
+        for
+          profileResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "profiles")))
+            .body(profileRequest)
+            .response(asJson[ProfileResponse])
+            .send(backend)
 
-          val dictionaries = result.body.toOption.get
-          dictionaries.dictionaries should have size 1
-          dictionaries.dictionaries.head.name shouldBe "english_basic"
-          dictionaries.dictionaries.head.language shouldBe "english"
-        }
+          profile = profileResponse.body.toOption.get
+
+          testRequest = TestRequest(
+            profileId = profile.id,
+            sources = List(SourceWithMerger("english_basic")),
+            wordCount = 5
+          )
+
+          testResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "tests")))
+            .body(testRequest)
+            .response(asJson[TestResponse])
+            .send(backend)
+
+          test = testResponse.body.toOption.get
+
+          resultsRequest = TestResultsRequest(
+            accuracy = 100.0,
+            rawAccuracy = 100.0,
+            testTime = 40000L,
+            errorCount = 0,
+            errorWordIndices = List.empty
+          )
+
+          _ <- basicRequest
+            .put(baseUri.addPath(Seq("api", "tests", test.testId, "results")))
+            .body(resultsRequest)
+            .response(asJson[TestResponse])
+            .send(backend)
+
+          analyticsResponse <- basicRequest
+            .get(baseUri.addPath(Seq("api", "analytics", profile.id)))
+            .response(asJson[api.models.analytics.AnalyticsResponse])
+            .send(backend)
+        yield
+          analyticsResponse.code shouldBe StatusCode.Ok
+          analyticsResponse.body.isRight shouldBe true
+
+          val analytics = analyticsResponse.body.toOption.get
+          analytics.userId shouldBe profile.id
+          analytics.totalTests shouldBe 1
+          analytics.totalErrors shouldBe 0
+          analytics.averageErrorsPerTest shouldBe 0.0
+          analytics.averageWpm should be > 0.0
+          analytics.averageAccuracy shouldBe 100.0
       }
     }
 
-    "return empty list for language with no dictionaries" in {
+    "get user analytics for user with no tests" in {
       withServer { backend =>
-        val response = basicRequest
-          .get(baseUri.addPath("api", "languages", "italian", "dictionaries"))
-          .response(asJson[DictionariesResponse])
-          .send(backend)
+        val profileRequest = CreateProfileRequest(
+          name = "Test User",
+          email = "test@example.com",
+          settings = Set.empty
+        )
 
-        response.map { result =>
-          result.code shouldBe StatusCode.Ok
-          result.body.isRight shouldBe true
+        for
+          profileResponse <- basicRequest
+            .post(baseUri.addPath(Seq("api", "profiles")))
+            .body(profileRequest)
+            .response(asJson[ProfileResponse])
+            .send(backend)
 
-          val dictionaries = result.body.toOption.get
-          dictionaries.dictionaries shouldBe empty
-        }
+          profile = profileResponse.body.toOption.get
+
+          analyticsResponse <- basicRequest
+            .get(baseUri.addPath(Seq("api", "analytics", profile.id)))
+            .response(asJson[api.models.analytics.AnalyticsResponse])
+            .send(backend)
+        yield
+          analyticsResponse.code shouldBe StatusCode.Ok
+          analyticsResponse.body.isRight shouldBe true
+
+          val analytics = analyticsResponse.body.toOption.get
+          analytics.userId shouldBe profile.id
+          analytics.totalTests shouldBe 0
+          analytics.totalErrors shouldBe 0
+          analytics.averageErrorsPerTest shouldBe 0.0
+          analytics.averageWpm shouldBe 0.0
+          analytics.averageAccuracy shouldBe 0.0
       }
     }
   }

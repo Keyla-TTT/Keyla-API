@@ -1,6 +1,15 @@
-package api.controllers
+package api.controllers.config
 
 import api.models.AppError
+import api.services.{
+  ConfigEntry,
+  ConfigKey,
+  ConfigListResponse,
+  ConfigUpdateRequest,
+  ConfigUpdateResponse,
+  ConfigurationService,
+  SimpleConfigUpdateRequest
+}
 import cats.effect.IO
 import config.*
 
@@ -75,7 +84,7 @@ class ConfigurationController(configService: ConfigurationService):
     */
   def getConfigEntry(
       key: String
-  ): IO[Either[AppError, config.ConfigEntry]] =
+  ): IO[Either[AppError, ConfigEntry]] =
     try
       val configKey = parseSimpleKey(key)
       configService.getConfigEntry(configKey)
@@ -95,16 +104,12 @@ class ConfigurationController(configService: ConfigurationService):
       case "database" :: "mongoUri" :: Nil => ConfigKey("database", "mongoUri")
       case "database" :: "databaseName" :: Nil =>
         ConfigKey("database", "databaseName")
-      case "database" :: "useMongodb" :: Nil =>
+      case "database" :: "useMongoDb" :: Nil =>
         ConfigKey("database", "useMongoDb")
-      case "server" :: "host" :: Nil       => ConfigKey("server", "host")
-      case "server" :: "port" :: Nil       => ConfigKey("server", "port")
-      case "server" :: "enableCors" :: Nil => ConfigKey("server", "enableCors")
-      case "server" :: "corsUrls" :: Nil   => ConfigKey("server", "corsUrls")
+      case "server" :: "host" :: Nil => ConfigKey("server", "host")
+      case "server" :: "port" :: Nil => ConfigKey("server", "port")
       case "dictionary" :: "basePath" :: Nil =>
         ConfigKey("dictionary", "basePath")
-      case "dictionary" :: "fileExtension" :: Nil =>
-        ConfigKey("dictionary", "fileExtension")
       case "dictionary" :: "autoCreateDirectories" :: Nil =>
         ConfigKey("dictionary", "autoCreateDirectories")
       case _ => throw new IllegalArgumentException(s"Unknown simple key: $key")
@@ -236,23 +241,22 @@ class ConfigurationController(configService: ConfigurationService):
   def resetToDefaults(): IO[Either[AppError, config.AppConfig]] =
     configService.resetToDefaults()
 
-  /** Gets the complete current configuration. Returns the entire configuration
-    * object as currently loaded in memory.
+  /** Gets the complete current configuration as a JSON string. Returns the
+    * entire configuration object as currently loaded in memory, serialized to
+    * JSON.
     *
     * @return
     *   IO effect containing either an error or the complete current
-    *   configuration
+    *   configuration as a JSON string
     *
     * @example
     *   {{{
     * controller.getCurrentConfig().map {
-    *   case Right(config) =>
-    *     println(s"Server: ${config.server.host}:${config.server.port}")
-    *     println(s"Database: ${config.database.databaseName}")
-    *     println(s"Dictionaries: ${config.dictionary.basePath}")
+    *   case Right(jsonString) =>
+    *     println(s"Configuration JSON: $jsonString")
     *   case Left(error) => println(s"Error getting config: ${error.message}")
     * }
     *   }}}
     */
-  def getCurrentConfig(): IO[Either[AppError, config.AppConfig]] =
-    configService.getCurrentConfig().map(Right(_))
+  def getCurrentConfig: IO[Right[Nothing, AppConfig]] =
+    configService.getCurrentConfig.map(Right(_))

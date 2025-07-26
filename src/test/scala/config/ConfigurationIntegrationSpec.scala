@@ -1,19 +1,28 @@
 package config
 
 import analytics.repository.InMemoryStatisticsRepository
-import api.controllers.{
-  AnalyticsController,
-  ConfigurationController,
-  TypingTestController
-}
+import analytics.calculator.AnalyticsCalculatorImpl
+import api.controllers.analytics.AnalyticsController
+import api.controllers.stats.StatsController
+import api.controllers.typingtest.TypingTestController
+import api.controllers.users.UsersController
 import api.models.*
 import api.models.ApiModels.given
 import api.server.ApiServer
-import api.services.{AnalyticsService, StatisticsService, TypingTestService}
-import analytics.calculator.AnalyticsCalculatorImpl
+import api.services.{
+  AnalyticsService,
+  ConfigEntry,
+  ConfigListResponse,
+  ConfigUpdateResponse,
+  ConfigurationService,
+  ProfileService,
+  SimpleConfigUpdateRequest,
+  StatisticsService,
+  TypingTestService
+}
+import api.controllers.config.ConfigurationController
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
-import config.{AppConfig, ConfigurationService}
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
@@ -25,6 +34,7 @@ import sttp.model.{StatusCode, Uri}
 import typingTest.dictionary.repository.FileDictionaryRepository
 import typingTest.tests.repository.InMemoryTypingTestRepository
 import users_management.repository.InMemoryProfileRepository
+import users_management.service.ProfileService
 
 import java.io.File
 
@@ -61,18 +71,21 @@ class ConfigurationIntegrationSpec
           database = DatabaseConfig(
             mongoUri = "mongodb://test:27017",
             databaseName = "test_db",
-            profilesCollection = "test_profiles",
-            testsCollection = "test_tests",
             useMongoDb = false
           ),
           server = ServerConfig(
             host = testHost,
             port = testPort,
-            enableCors = true
+            threadPool = ThreadPoolConfig(
+              coreSize = 2,
+              maxSize = 4,
+              keepAliveSeconds = 30,
+              queueSize = 100,
+              threadNamePrefix = "test-api"
+            )
           ),
           dictionary = DictionaryConfig(
             basePath = "src/test/resources/dictionaries",
-            fileExtension = ".txt",
             autoCreateDirectories = true
           ),
           version = "1.0.0"
@@ -82,8 +95,7 @@ class ConfigurationIntegrationSpec
       profileRepository <- IO.pure(InMemoryProfileRepository())
       dictionaryRepository <- IO.pure(
         FileDictionaryRepository(
-          testConfig.dictionary.basePath,
-          testConfig.dictionary.fileExtension
+          testConfig.dictionary.basePath
         )
       )
       typingTestRepository <- IO.pure(InMemoryTypingTestRepository())
@@ -101,26 +113,34 @@ class ConfigurationIntegrationSpec
         TypingTestService(
           profileRepository,
           dictionaryRepository,
-          typingTestRepository
+          typingTestRepository,
+          analyticsRepository
         )
       )
 
-      analyticsService <- IO.pure(
-        AnalyticsService(analyticsRepository, AnalyticsCalculatorImpl())
-      )
       statisticsService <- IO.pure(
         StatisticsService(analyticsRepository)
       )
-      configController <- IO.pure(ConfigurationController(configService))
-      typingTestController <- IO.pure(TypingTestController(typingTestService))
-      analyticsController <- IO.pure(
-        AnalyticsController(statisticsService, analyticsService)
+      analyticsService <- IO.pure(
+        AnalyticsService(statisticsService, AnalyticsCalculatorImpl())
       )
+
+      profileService <- IO.pure(ProfileService(profileRepository))
+      usersController <- IO.pure(UsersController(profileService))
+      typingTestController <- IO.pure(TypingTestController(typingTestService))
+      statsController <- IO.pure(StatsController(statisticsService))
+      analyticsController <- IO.pure(
+        AnalyticsController(analyticsService)
+      )
+      configController <- IO.pure(ConfigurationController(configService))
+
       server <- IO.pure(
         ApiServer(
-          configController,
+          usersController,
           typingTestController,
+          statsController,
           analyticsController,
+          configController,
           testConfig
         )
       )
@@ -229,42 +249,7 @@ class ConfigurationIntegrationSpec
                     s"Failed to parse response: $error"
                   )
               _ = updateResponse.success shouldBe true
-              _ = updateResponse.updatedConfig.database.mongoUri shouldBe "mongodb://updated:27017"
               _ = updateResponse.message should include("reinitialized")
-            yield ()
-          }
-        }
-      }
-    }
-
-    "update a non-repository affecting configuration entry" in {
-      createTestServer().flatMap { server =>
-        server.resource(testPort, testHost).use { _ =>
-          BlazeClientBuilder[IO].resource.use { client =>
-            val backend = Http4sBackend.usingClient(client)
-
-            val updateRequest = SimpleConfigUpdateRequest(
-              key = "server.enableCors",
-              value = "false"
-            )
-
-            val request = basicRequest
-              .put(getBaseUri().addPath("api", "config"))
-              .body(updateRequest)
-              .response(asJson[ConfigUpdateResponse])
-
-            for
-              response <- backend.send(request)
-              _ = response.code shouldBe StatusCode.Ok
-              updateResponse = response.body match
-                case Right(value) => value
-                case Left(error) =>
-                  throw new RuntimeException(
-                    s"Failed to parse response: $error"
-                  )
-              _ = updateResponse.success shouldBe true
-              _ = updateResponse.updatedConfig.server.enableCors shouldBe false
-              _ = updateResponse.message should not include ("reinitialized")
             yield ()
           }
         }
@@ -301,21 +286,32 @@ class ConfigurationIntegrationSpec
           BlazeClientBuilder[IO].resource.use { client =>
             val backend = Http4sBackend.usingClient(client)
             val request = basicRequest
-              .get(getBaseUri().addPath("api", "config", "current"))
-              .response(asJson[AppConfig])
+              .get(getBaseUri().addPath("api", "config"))
+              .response(asJson[ConfigListResponse])
 
             for
               response <- backend.send(request)
               _ = response.code shouldBe StatusCode.Ok
-              config = response.body match
+              configList = response.body match
                 case Right(value) => value
                 case Left(error) =>
                   throw new RuntimeException(
                     s"Failed to parse response: $error"
                   )
-              _ = config.database.mongoUri shouldBe "mongodb://test:27017"
-              _ = config.server.port shouldBe testPort
-              _ = config.dictionary.basePath shouldBe "src/test/resources/dictionaries"
+              _ = configList.entries should not be empty
+
+              mongoUriEntry = configList.entries
+                .find(_.key.key == "mongoUri")
+                .get
+              _ = mongoUriEntry.value shouldBe "mongodb://test:27017"
+
+              portEntry = configList.entries.find(_.key.key == "port").get
+              _ = portEntry.value shouldBe testPort.toString
+
+              basePathEntry = configList.entries
+                .find(_.key.key == "basePath")
+                .get
+              _ = basePathEntry.value shouldBe "src/test/resources/dictionaries"
             yield ()
           }
         }
@@ -446,7 +442,7 @@ class ConfigurationIntegrationSpec
               .put(getBaseUri().addPath("api", "config"))
               .body(
                 SimpleConfigUpdateRequest(
-                  key = "database.useMongodb",
+                  key = "database.useMongoDb",
                   value = "true"
                 )
               )
@@ -466,7 +462,7 @@ class ConfigurationIntegrationSpec
               .put(getBaseUri().addPath("api", "config"))
               .body(
                 SimpleConfigUpdateRequest(
-                  key = "database.useMongodb",
+                  key = "database.useMongoDb",
                   value = "false"
                 )
               )
@@ -482,7 +478,6 @@ class ConfigurationIntegrationSpec
                     s"Failed to parse response: $error"
                   )
               _ = enableResult.message should include("reinitialized")
-              _ = enableResult.updatedConfig.database.useMongoDb shouldBe true
 
               uriResponse <- backend.send(changeUriRequest)
               _ = uriResponse.code shouldBe StatusCode.Ok
@@ -503,7 +498,6 @@ class ConfigurationIntegrationSpec
                     s"Failed to parse response: $error"
                   )
               _ = disableResult.message should include("reinitialized")
-              _ = disableResult.updatedConfig.database.useMongoDb shouldBe false
             yield ()
           }
         }
@@ -537,7 +531,6 @@ class ConfigurationIntegrationSpec
                   )
               _ = updateResponse.success shouldBe true
               _ = updateResponse.message should include("restart required")
-              _ = updateResponse.updatedConfig.server.port shouldBe 9090
             yield ()
           }
         }
@@ -571,7 +564,6 @@ class ConfigurationIntegrationSpec
                   )
               _ = updateResponse.success shouldBe true
               _ = updateResponse.message should include("restart required")
-              _ = updateResponse.updatedConfig.server.host shouldBe "0.0.0.0"
             yield ()
           }
         }

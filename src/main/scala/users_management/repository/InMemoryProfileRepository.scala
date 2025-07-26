@@ -42,3 +42,5 @@ class InMemoryProfileRepository extends ProfileRepository:
 
   override def list(): List[Profile] =
     profiles.values.toList
+
+  override def close(): Unit = ()

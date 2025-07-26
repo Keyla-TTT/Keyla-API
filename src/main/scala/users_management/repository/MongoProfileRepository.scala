@@ -1,6 +1,7 @@
 package users_management.repository
 
 import com.mongodb.client.{MongoClients, MongoCollection, MongoDatabase}
+import common.DatabaseInfos
 import org.bson.Document
 import org.bson.types.ObjectId
 import users_management.model.{Profile, UserProfile}

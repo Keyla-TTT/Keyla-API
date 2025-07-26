@@ -1,6 +1,7 @@
 package analytics.repository
 
-import analytics.model.{Statistics, UserStatistics}
+import analytics.model.{Statistics, TestStatistics}
+import common.DatabaseInfos
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -15,7 +16,7 @@ class TestMongoStatisticsRepository
     with BeforeAndAfterAll:
 
   private val mongoContainer = new MongoDBContainer("mongo:6.0")
-  private val testStats = UserStatistics(
+  private val testStats = TestStatistics(
     userId = "user1",
     testId = "",
     wpm = 10.0,
@@ -29,6 +30,9 @@ class TestMongoStatisticsRepository
     mongoContainer.start()
 
   override def afterAll(): Unit =
+    if repository != null then
+      repository.clean()
+      repository.close()
     mongoContainer.stop()
 
   before {

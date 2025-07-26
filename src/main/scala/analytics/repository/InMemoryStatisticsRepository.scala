@@ -42,3 +42,7 @@ class InMemoryStatisticsRepository extends StatisticsRepository:
     logger.warn("Cleaning all statistics from repository")
     statisticsStore.clear()
     true
+  override def close(): Unit =
+    logger.info("Closing InMemoryStatisticsRepository")
+    clean()
+    // No resources to close, but method is required by AutoCloseable

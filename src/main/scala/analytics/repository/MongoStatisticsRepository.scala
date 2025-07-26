@@ -1,8 +1,8 @@
 package analytics.repository
 
-import analytics.model.{Statistics, UserStatistics}
-import analytics.repository.DatabaseInfos
+import analytics.model.{Statistics, TestStatistics}
 import com.mongodb.client.{MongoClients, MongoCollection, MongoDatabase}
+import common.DatabaseInfos
 import org.bson.Document
 import org.bson.types.ObjectId
 
@@ -62,7 +62,7 @@ class MongoStatisticsRepository(dbInfos: DatabaseInfos)
     }.getOrElse(List())
 
   private def fromDocument(doc: Document): Statistics =
-    UserStatistics(
+    TestStatistics(
       userId = doc.getString("userID"),
       testId = doc.getObjectId("_id").toString,
       wpm = doc.getDouble("wpm"),

@@ -1,5 +1,6 @@
 package users_management.repository
 
+import common.DatabaseInfos
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -27,6 +28,7 @@ class TestMongoRepo
     mongoContainer.start()
 
   override def afterAll(): Unit =
+    if repository != null then repository.close()
     mongoContainer.stop()
 
   before:

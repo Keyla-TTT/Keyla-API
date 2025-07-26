@@ -1,6 +1,6 @@
 package analytics.repository
 
-import analytics.model.{Statistics, UserStatistics}
+import analytics.model.{Statistics, TestStatistics}
 import analytics.repository.InMemoryStatisticsRepository
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -13,7 +13,7 @@ class TestInMemoryRepository
     with Matchers
     with BeforeAndAfter:
 
-  private val testStats = UserStatistics(
+  private val testStats = TestStatistics(
     userId = "user1",
     testId = "test-123",
     wpm = 10.0,

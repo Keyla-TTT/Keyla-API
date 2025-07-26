@@ -1,24 +1,30 @@
-import api.controllers.{
-  AnalyticsController,
-  ConfigurationController,
-  TypingTestController
-}
+import api.controllers.analytics.AnalyticsController
+import api.controllers.config.ConfigurationController
+import api.controllers.stats.StatsController
+import api.controllers.typingtest.TypingTestController
+import api.controllers.users.UsersController
 import api.server.ApiServer
-import api.services.{AnalyticsService, StatisticsService, TypingTestService}
+import api.services.{
+  AnalyticsService,
+  ConfigurationService,
+  ProfileService,
+  StatisticsService,
+  TypingTestService
+}
 import analytics.calculator.AnalyticsCalculatorImpl
 import cats.effect.{ExitCode, IO, IOApp}
-import config.{AppConfig, ConfigurationService}
+import config.{AppConfig, ConfigUtils}
 
 object Main extends IOApp:
 
   override def run(args: List[String]): IO[ExitCode] =
     for
-      config <- AppConfig.loadOrCreateDefault()
+      config <- ConfigUtils.loadOrCreateDefault()
 
-      profileRepository = AppConfig.createProfileRepository(config)
-      dictionaryRepository = AppConfig.createDictionaryRepository(config)
-      typingTestRepository = AppConfig.createTypingTestRepository(config)
-      statisticsRepository = AppConfig.createStatisticsRepository(config)
+      profileRepository = ConfigUtils.createProfileRepository(config)
+      dictionaryRepository = ConfigUtils.createDictionaryRepository(config)
+      typingTestRepository = ConfigUtils.createTypingTestRepository(config)
+      statisticsRepository = ConfigUtils.createStatisticsRepository(config)
 
       configService <- ConfigurationService.create(
         config,
@@ -28,37 +34,52 @@ object Main extends IOApp:
         statisticsRepository
       )
 
-      service = TypingTestService(
+      typingTestService = TypingTestService(
         profileRepository,
         dictionaryRepository,
-        typingTestRepository
+        typingTestRepository,
+        statisticsRepository
       )
+      profileService = ProfileService(profileRepository)
       statisticsService = StatisticsService(statisticsRepository)
       analyticsCalculator = AnalyticsCalculatorImpl()
       analyticsService = AnalyticsService(
-        statisticsRepository,
+        statisticsService,
         analyticsCalculator
       )
 
       configController = ConfigurationController(configService)
-      typingTestController = TypingTestController(service)
-      analyticsController = AnalyticsController(
-        statisticsService,
-        analyticsService
-      )
+      usersController = UsersController(profileService)
+      typingTestController = TypingTestController(typingTestService)
+      statsController = StatsController(statisticsService)
+      analyticsController = AnalyticsController(analyticsService)
       server = ApiServer(
-        configController,
+        usersController,
         typingTestController,
+        statsController,
         analyticsController,
+        configController,
         config
       )
 
       _ <- IO.println(
         s"Starting server on ${config.server.host}:${config.server.port}"
       )
-      _ <- IO.println(s"Using configuration file: ${AppConfig.getConfigPath}")
+      _ <- IO.println(s"Using configuration file: ${ConfigUtils.getConfigPath}")
       _ <- IO.println(s"MongoDB enabled: ${config.database.useMongoDb}")
       _ <- IO.println(s"Dictionary path: ${config.dictionary.basePath}")
+      _ <- IO.println(
+        s"Thread pool: coreSize=${config.server.threadPool.coreSize}, maxSize=${config.server.threadPool.maxSize}"
+      )
 
-      exitCode <- server.serveOn(config.server.port, config.server.host)
+      exitCode <- server.resource(config.server.port, config.server.host).use {
+        runningServer =>
+          for
+            _ <- IO.println(
+              s"Server started successfully on ${runningServer.address}"
+            )
+            _ <- IO.println("Press Ctrl+C to stop the server...")
+            _ <- IO.never
+          yield ExitCode.Success
+      }
     yield exitCode

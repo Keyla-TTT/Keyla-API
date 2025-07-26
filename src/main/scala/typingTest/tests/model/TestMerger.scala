@@ -2,14 +2,58 @@ package typingTest.tests.model
 
 import scala.util.Random
 
+/** Trait defining operations for merging two sequences of elements.
+  *
+  * This trait provides a generic interface for combining two sequences into a
+  * single sequence using various merging strategies. It is used in typing tests
+  * to combine words from different sources (dictionaries, languages, etc.) into
+  * a unified test sequence.
+  *
+  * =Merging Strategies=
+  *
+  * Different implementations can provide various merging approaches:
+  *   - '''Alternating''': Interleave elements from both sequences
+  *   - '''Concatenation''': Append second sequence to first
+  *   - '''Random Mixing''': Shuffle elements from both sequences
+  *   - '''Random Insertion''': Insert elements at random positions
+  *   - '''Probabilistic''': Select elements based on probabilities
+  *
+  * =Usage=
+  *
+  * This trait is used by the typing test system to combine multiple word
+  * sources into a single test sequence with controlled mixing behavior.
+  *
+  * @tparam T
+  *   The type of elements to merge
+  *
+  * @example
+  *   {{{
+  * val merger: MergeOps[String] = TestMerger.alternate
+  * val words1 = Seq("hello", "world", "scala")
+  * val words2 = Seq("hola", "mundo", "programming")
+  * val merged = merger.merge(words1, words2)
+  * // Result: Seq("hello", "hola", "world", "mundo", "scala", "programming")
+  *   }}}
+  */
 trait MergeOps[T]:
   /** Merges two sequences of elements into one
+    *
+    * This method combines elements from both input sequences according to the
+    * specific merging strategy implemented by the trait.
+    *
     * @param s1
     *   First sequence of elements
     * @param s2
     *   Second sequence of elements
     * @return
     *   Merged sequence containing elements from both input sequences
+    *
+    * @example
+    *   {{{
+    * val concatenateMerger = TestMerger.concatenate
+    * val result = concatenateMerger.merge(Seq(1, 2), Seq(3, 4))
+    * // Result: Seq(1, 2, 3, 4)
+    *   }}}
     */
   def merge(s1: Seq[T], s2: Seq[T]): Seq[T]
 
@@ -119,3 +163,15 @@ object TestMerger:
       .zipAll(chunks2, Seq.empty, Seq.empty)
       .flatMap { case (c1, c2) => c1 ++ c2 }
   )
+
+object MergerFacade:
+  val mergerMap: Map[String, MergeOps[Any]] = Map(
+    "alternate" -> TestMerger.alternate,
+    "randomMix" -> TestMerger.randomMix,
+    "concatenate" -> TestMerger.concatenate,
+    "random" -> TestMerger.random
+  )
+
+  def getMerger(name: String): Option[MergeOps[Any]] = mergerMap.get(name)
+  def getAvailableMergers: Set[String] = mergerMap.keySet
+  def isValidMerger(name: String): Boolean = mergerMap.contains(name)

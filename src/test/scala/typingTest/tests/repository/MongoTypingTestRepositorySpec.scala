@@ -1,12 +1,13 @@
 package typingTest.tests.repository
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfterAll
-import users_management.repository.DatabaseInfos
 import com.mongodb.client.MongoClients
+import common.DatabaseInfos
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import org.testcontainers.containers.MongoDBContainer
 import org.testcontainers.utility.DockerImageName
+
 import scala.compiletime.uninitialized
 
 class MongoTypingTestRepositorySpec
@@ -25,7 +26,8 @@ class MongoTypingTestRepositorySpec
 
     dbInfos = DatabaseInfos(
       collectionName = "test_typing_tests",
-      mongoUri = mongoContainer.getReplicaSetUrl,
+      mongoUri =
+        s"mongodb://${mongoContainer.getHost}:${mongoContainer.getFirstMappedPort}",
       databaseName = "test_db"
     )
 

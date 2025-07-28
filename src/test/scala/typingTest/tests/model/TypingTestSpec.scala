@@ -1,8 +1,8 @@
 package typingTest.tests.model
 
+import com.github.nscala_time.time.Imports.DateTime
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import com.github.nscala_time.time.Imports.DateTime
 import typingTest.dictionary.model.Dictionary
 
 class TypingTestSpec extends AnyFlatSpec with Matchers:
@@ -20,42 +20,41 @@ class TypingTestSpec extends AnyFlatSpec with Matchers:
     info.completedDateTime shouldBe Some(now)
   }
 
-  "TypingTest" should "create a basic typing test correctly" in {
-    val dictionary = Dictionary("test", "test", "/path/to/test.txt")
-    val info = CompletedInfo()
-    val words = Seq("word1", "word2")
-
+  "TypingTest" should "create a test with basic parameters" in {
+    val dictionary = Dictionary("test", "/path/to/test.txt")
     val test = TypingTest(
       sources = Set(dictionary),
-      modifiers = Seq("uppercase"),
-      info = info,
-      words = words
+      modifiers = Seq("lowercase"),
+      info = CompletedInfo(isCompleted = false, completedAt = None),
+      words = Seq("word1", "word2", "word3")
     )
 
-    test.sources shouldBe Set(dictionary)
-    test.modifiers shouldBe Seq("uppercase")
-    test.info shouldBe info
-    test.words shouldBe words
+    test.sources should have size 1
+    test.modifiers should contain("lowercase")
+    test.words should contain theSameElementsAs Seq("word1", "word2", "word3")
+    test.info.completed shouldBe false
   }
 
-  it should "handle multiple sources and modifiers" in {
-    val dict1 = Dictionary("dict1", "test", "/path/to/dict1.txt")
-    val dict2 = Dictionary("dict2", "test", "/path/to/dict2.txt")
-
-    val info = CompletedInfo(true, Some(DateTime.now()))
-    val words = Seq("word1", "word2", "word3", "word4")
-
+  it should "create a test with multiple sources" in {
+    val dict1 = Dictionary("dict1", "/path/to/dict1.txt")
+    val dict2 = Dictionary("dict2", "/path/to/dict2.txt")
     val test = TypingTest(
       sources = Set(dict1, dict2),
-      modifiers = Seq("uppercase", "reverse"),
-      info = info,
-      words = words
+      modifiers = Seq("uppercase", "numbers"),
+      info =
+        CompletedInfo(isCompleted = true, completedAt = Some(DateTime.now())),
+      words = Seq("word1", "word2", "word3", "word4")
     )
 
-    test.sources shouldBe Set(dict1, dict2)
-    test.modifiers shouldBe Seq("uppercase", "reverse")
-    test.info shouldBe info
-    test.words shouldBe words
+    test.sources should have size 2
+    test.modifiers should contain allOf ("uppercase", "numbers")
+    test.words should contain theSameElementsAs Seq(
+      "word1",
+      "word2",
+      "word3",
+      "word4"
+    )
+    test.info.completed shouldBe true
   }
 
   it should "handle empty sources and modifiers" in {

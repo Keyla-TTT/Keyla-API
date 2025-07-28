@@ -50,6 +50,9 @@ object ModifiersFacade:
       case other     => f(other.toString)
     }
 
+  def limit(max: Int): NamedModifier[Any, String] =
+    "limit" <> ofString(_.take(max))
+
   /** Creates a modifier that converts all strings to uppercase
     *
     * @return

@@ -1,5 +1,6 @@
 package users_management.repository
 
+import common.Repository
 import users_management.model.Profile
 
 /** Repository trait for managing user profiles.
@@ -8,7 +9,7 @@ import users_management.model.Profile
   * Implementations of this trait should handle the persistence layer operations
   * for user profiles (e.g. database access).
   */
-trait ProfileRepository:
+trait ProfileRepository extends Repository:
 
   /** Retrieves a profile by its ID.
     *

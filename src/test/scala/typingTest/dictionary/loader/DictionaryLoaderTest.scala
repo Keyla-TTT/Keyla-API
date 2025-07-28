@@ -3,72 +3,115 @@ package typingTest.dictionary.loader
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import typingTest.dictionary.model.Dictionary
+import typingTest.dictionary.model.DictionaryJson
+import com.github.plokhotnyuk.jsoniter_scala.core.writeToArray
+
 import java.io.File
 import java.nio.file.Files
 
 class DictionaryLoaderTest extends AnyFlatSpec with Matchers:
-  val loader = new FileDictionaryLoader()
-
-  "FileDictionaryLoader" should "load words from a valid dictionary file" in {
+  "FileDictionaryLoader" should "load words from a dictionary file" in {
     val tempFile = File.createTempFile("test-dict", ".txt")
-    try
-      val words = List("word1", "word2", "word3")
-      Files.write(tempFile.toPath, words.mkString("\n").getBytes)
+    Files.write(tempFile.toPath, "word1\nword2\nword3".getBytes)
 
-      val dictionary = Dictionary("test-dict", "test", tempFile.getAbsolutePath)
-      val loadedWords = loader.loadWords(dictionary)
+    val dictionary = Dictionary("test-dict", tempFile.getAbsolutePath)
+    val loader = new FileDictionaryLoader()
 
-      loadedWords should have size 3
-      loadedWords should contain allOf ("word1", "word2", "word3")
-    finally tempFile.delete()
+    val words = loader.loadWords(dictionary)
+    words should contain theSameElementsAs Seq("word1", "word2", "word3")
+
+    tempFile.delete()
   }
 
-  it should "return empty Vector for non-existent file" in {
-    val dictionary =
-      Dictionary("non-existent", "test", "/path/to/non/existent/file.txt")
-    val loadedWords = loader.loadWords(dictionary)
-
-    loadedWords shouldBe empty
+  it should "return empty sequence for non-existent file" in {
+    val loader = new FileDictionaryLoader()
+    val words = loader.loadWords(
+      Dictionary("non-existent", "/path/to/non/existent/file.txt")
+    )
+    words shouldBe empty
   }
 
-  it should "handle empty dictionary file" in {
+  it should "return empty sequence for empty file" in {
     val tempFile = File.createTempFile("empty-dict", ".txt")
-    try
-      val dictionary =
-        Dictionary("empty-dict", "test", tempFile.getAbsolutePath)
-      val loadedWords = loader.loadWords(dictionary)
+    val loader = new FileDictionaryLoader()
+    val words = loader.loadWords(
+      Dictionary("empty-dict", tempFile.getAbsolutePath)
+    )
+    words shouldBe empty
 
-      loadedWords shouldBe empty
-    finally tempFile.delete()
+    tempFile.delete()
   }
 
-  it should "cache loaded dictionaries" in {
+  it should "cache loaded words" in {
     val tempFile = File.createTempFile("cache-dict", ".txt")
-    try
-      val words = List("word1", "word2", "word3")
-      Files.write(tempFile.toPath, words.mkString("\n").getBytes)
+    Files.write(tempFile.toPath, "cached1\ncached2".getBytes)
 
-      val dictionary =
-        Dictionary("cache-dict", "test", tempFile.getAbsolutePath)
+    val loader = new FileDictionaryLoader()
+    val dictionary = Dictionary("cache-dict", tempFile.getAbsolutePath)
 
-      val firstLoad = loader.loadWords(dictionary)
-      val secondLoad = loader.loadWords(dictionary)
+    val firstLoad = loader.loadWords(dictionary)
+    val secondLoad = loader.loadWords(dictionary)
 
-      firstLoad should be theSameInstanceAs secondLoad
-      firstLoad should contain allOf ("word1", "word2", "word3")
-    finally tempFile.delete()
+    firstLoad should contain theSameElementsAs Seq("cached1", "cached2")
+    secondLoad should contain theSameElementsAs Seq("cached1", "cached2")
+
+    tempFile.delete()
   }
 
-  it should "load words lazily" in {
+  it should "handle lazy loading correctly" in {
     val tempFile = File.createTempFile("lazy-dict", ".txt")
-    try
-      val words = List("word1", "word2", "word3")
-      Files.write(tempFile.toPath, words.mkString("\n").getBytes)
+    Files.write(tempFile.toPath, "lazy1\nlazy2\nlazy3".getBytes)
 
-      val dictionary = Dictionary("lazy-dict", "test", tempFile.getAbsolutePath)
-      val loadedWords = loader.loadWords(dictionary)
+    val dictionary = Dictionary("lazy-dict", tempFile.getAbsolutePath)
+    val loader = new FileDictionaryLoader()
 
-      loadedWords.take(1).toList should contain only "word1"
-      loadedWords.take(2).toList should contain allOf ("word1", "word2")
-    finally tempFile.delete()
+    val words = loader.loadWords(dictionary)
+    words should contain theSameElementsAs Seq("lazy1", "lazy2", "lazy3")
+
+    tempFile.delete()
+  }
+
+  "JsonDictionaryLoader" should "load words from a JSON dictionary file" in {
+    val tempFile = File.createTempFile("test-dict-json", ".json")
+    val dictJson =
+      DictionaryJson("test-dict-json", Seq("word1", "word2", "word3"))
+    Files.write(tempFile.toPath, writeToArray(dictJson))
+
+    val dictionary = Dictionary("test-dict-json", tempFile.getAbsolutePath)
+    val loader = new JsonDictionaryLoader()
+
+    val words = loader.loadWords(dictionary)
+    words should contain theSameElementsAs Seq("word1", "word2", "word3")
+
+    tempFile.delete()
+  }
+
+  it should "return empty sequence for non-existent JSON file" in {
+    val loader = new JsonDictionaryLoader()
+    val words = loader.loadWords(
+      Dictionary("non-existent-json", "/path/to/non/existent/file.json")
+    )
+    words shouldBe empty
+  }
+
+  it should "return empty sequence for empty JSON file" in {
+    val tempFile = File.createTempFile("empty-dict-json", ".json")
+    val loader = new JsonDictionaryLoader()
+    val words = loader.loadWords(
+      Dictionary("empty-dict-json", tempFile.getAbsolutePath)
+    )
+    words shouldBe empty
+
+    tempFile.delete()
+  }
+
+  it should "return empty sequence for malformed JSON file" in {
+    val tempFile = File.createTempFile("malformed-dict-json", ".json")
+    Files.write(tempFile.toPath, "{ invalid json }".getBytes)
+    val loader = new JsonDictionaryLoader()
+    val words = loader.loadWords(
+      Dictionary("malformed-dict-json", tempFile.getAbsolutePath)
+    )
+    words shouldBe empty
+    tempFile.delete()
   }

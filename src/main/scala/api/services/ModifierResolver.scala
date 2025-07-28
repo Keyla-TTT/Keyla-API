@@ -1,6 +1,6 @@
 package api.services
 
-import typingTest.tests.model.{NamedModifier, ModifiersFacade}
+import typingTest.tests.model.{ModifiersFacade, NamedModifier}
 
 /** Resolver for text transformation modifiers used in typing tests.
   *
@@ -174,3 +174,12 @@ object ModifierResolver:
     */
   def createModifierWithSuffix(suffix: String): NamedModifier[Any, String] =
     ModifiersFacade.addSuffix(suffix)
+
+object MergerResolver:
+  private val mergerMap: Map[String, typingTest.tests.model.MergeOps[Any]] =
+    typingTest.tests.model.MergerFacade.mergerMap
+
+  def getMerger(name: String): Option[typingTest.tests.model.MergeOps[Any]] =
+    mergerMap.get(name)
+  def getAvailableMergers: Set[String] = mergerMap.keySet
+  def isValidMerger(name: String): Boolean = mergerMap.contains(name)

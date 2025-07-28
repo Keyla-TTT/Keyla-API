@@ -32,5 +32,13 @@ package object models:
     def fromOptionF[A](optIO: IO[Option[A]], error: => AppError): AppResult[A] =
       EitherT(optIO.map(_.toRight(error)))
 
+    def sequence[A](xs: List[AppResult[A]]): AppResult[List[A]] =
+      xs.foldRight(pure(List.empty[A])) { (elem, acc) =>
+        for
+          x <- elem
+          xs <- acc
+        yield x :: xs
+      }
+
   extension [A](appResult: AppResult[A])
     def toIO: IO[Either[AppError, A]] = appResult.value

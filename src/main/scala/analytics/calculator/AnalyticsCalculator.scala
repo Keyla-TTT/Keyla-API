@@ -57,4 +57,4 @@ trait AnalyticsCalculator:
     * // analytics.wpmImprovement should be positive
     *   }}}
     */
-  def analyzeUser(statistics: List[TestStatistics]): Analytics
+  def analyzeUser(statistics: List[TestStatistics], userId: String): Analytics

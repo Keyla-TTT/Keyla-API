@@ -4,10 +4,14 @@ import analytics.model.{UserAnalytics, TestStatistics, UserAnalyticsBuilder}
 
 class AnalyticsCalculatorImpl extends AnalyticsCalculator:
 
-  override def analyzeUser(statistics: List[TestStatistics]): UserAnalytics =
+  override def analyzeUser(
+      statistics: List[TestStatistics],
+      userId: String
+  ): UserAnalytics =
 
     if statistics.isEmpty then
       return new UserAnalyticsBuilder()
+        .setUserId(userId)
         .setTotalTests(0)
         .setAverageWpm(0.0)
         .setAverageAccuracy(0.0)
@@ -41,6 +45,7 @@ class AnalyticsCalculatorImpl extends AnalyticsCalculator:
     val accuracyImprovement = lastTest.accuracy - firstTest.accuracy
 
     new UserAnalyticsBuilder()
+      .setUserId(userId)
       .setTotalTests(totalTests)
       .setAverageWpm(avgWpm)
       .setAverageAccuracy(avgAccuracy)

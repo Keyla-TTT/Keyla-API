@@ -8,7 +8,7 @@ class AnalyticsCalculatorImplTest extends AnyFunSuite with Matchers:
   private val calculator = AnalyticsCalculatorImpl()
 
   test("analyzeUser should return default values for empty statistics list") {
-    val result = calculator.analyzeUser(List.empty)
+    val result = calculator.analyzeUser(List.empty, "")
     result shouldBe UserAnalytics(
       "",
       0,
@@ -35,7 +35,7 @@ class AnalyticsCalculatorImplTest extends AnyFunSuite with Matchers:
       timestamp = 1000L
     )
 
-    val result = calculator.analyzeUser(List(stats))
+    val result = calculator.analyzeUser(List(stats), "user1")
 
     result.userId shouldBe "user1"
     result.totalTests shouldBe 1
@@ -63,7 +63,7 @@ class AnalyticsCalculatorImplTest extends AnyFunSuite with Matchers:
       2000L
     )
 
-    val result = calculator.analyzeUser(List(stats1, stats2))
+    val result = calculator.analyzeUser(List(stats1, stats2), "user1")
 
     result.userId shouldBe "user1"
     result.totalTests shouldBe 2

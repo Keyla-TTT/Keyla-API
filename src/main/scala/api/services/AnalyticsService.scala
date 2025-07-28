@@ -119,7 +119,9 @@ case class AnalyticsServiceImpl(
           )
         )
       )
-      analytics <- AppResult.pure(calculator.analyzeUser(userStatistics))
+      analytics <- AppResult.pure(
+        calculator.analyzeUser(userStatistics, userId)
+      )
       response <- AppResult.pure(
         AnalyticsResponse(
           userId = analytics.userId,

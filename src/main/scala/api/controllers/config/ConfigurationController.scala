@@ -1,14 +1,17 @@
-package api.controllers
+package api.controllers.config
 
 import api.models.AppError
-import cats.effect.IO
-import config.{
+import api.services.{
+  ConfigEntry,
   ConfigKey,
   ConfigListResponse,
   ConfigUpdateRequest,
   ConfigUpdateResponse,
-  ConfigurationService
+  ConfigurationService,
+  SimpleConfigUpdateRequest
 }
+import cats.effect.IO
+import config.*
 
 /** Controller for handling configuration management REST API endpoints.
   * Provides a thin layer over ConfigurationService for HTTP API operations.
@@ -60,31 +63,56 @@ class ConfigurationController(configService: ConfigurationService):
   def getAllConfigEntries(): IO[Either[AppError, ConfigListResponse]] =
     configService.getAllConfigEntries().map(Right(_))
 
-  /** Gets a specific configuration entry by section and key name. Equivalent to
-    * `git config <section>.<key>`.
+  /** Gets a specific configuration entry by dot notation key. Equivalent to
+    * `git config <section>.<key>` but using simplified dot notation.
     *
-    * @param section
-    *   The configuration section (e.g., "server", "database", "dictionary")
     * @param key
-    *   The configuration key within the section (e.g., "port", "host")
+    *   The configuration key in dot notation format (e.g., "server.port",
+    *   "database.useMongodb")
     * @return
     *   IO effect containing either an error or the configuration entry
     *
     * @example
     *   {{{
-    * controller.getConfigEntry("server", "port").map {
+    * controller.getConfigEntry("server.port").map {
     *   case Right(entry) => println(s"Server port: ${entry.value}")
     *   case Left(AppError.ConfigKeyNotFound(section, key)) =>
-    *     println(s"Configuration key $section.$key not found")
+    *     println(s"Configuration key $key not found")
     *   case Left(error) => println(s"Error: ${error.message}")
     * }
     *   }}}
     */
   def getConfigEntry(
-      section: String,
       key: String
-  ): IO[Either[AppError, config.ConfigEntry]] =
-    configService.getConfigEntry(ConfigKey(section, key))
+  ): IO[Either[AppError, ConfigEntry]] =
+    try
+      val configKey = parseSimpleKey(key)
+      configService.getConfigEntry(configKey)
+    catch
+      case _: IllegalArgumentException =>
+        IO.pure(Left(AppError.ConfigKeyNotFound("", key)))
+
+  /** Parses a simplified dot notation key into a ConfigKey.
+    *
+    * @param key
+    *   The simplified dot notation key (e.g., "database.useMongodb")
+    * @return
+    *   The corresponding ConfigKey
+    */
+  private def parseSimpleKey(key: String): ConfigKey =
+    key.split('.').toList match
+      case "database" :: "mongoUri" :: Nil => ConfigKey("database", "mongoUri")
+      case "database" :: "databaseName" :: Nil =>
+        ConfigKey("database", "databaseName")
+      case "database" :: "useMongoDb" :: Nil =>
+        ConfigKey("database", "useMongoDb")
+      case "server" :: "host" :: Nil => ConfigKey("server", "host")
+      case "server" :: "port" :: Nil => ConfigKey("server", "port")
+      case "dictionary" :: "basePath" :: Nil =>
+        ConfigKey("dictionary", "basePath")
+      case "dictionary" :: "autoCreateDirectories" :: Nil =>
+        ConfigKey("dictionary", "autoCreateDirectories")
+      case _ => throw new IllegalArgumentException(s"Unknown simple key: $key")
 
   /** Updates a configuration entry with a new value. Equivalent to
     * `git config <section>.<key> <value>`.
@@ -123,6 +151,46 @@ class ConfigurationController(configService: ConfigurationService):
       request: ConfigUpdateRequest
   ): IO[Either[AppError, ConfigUpdateResponse]] =
     configService.updateConfigEntry(request)
+
+  /** Updates a configuration entry using simplified dot notation key format.
+    * Equivalent to `git config <section>.<key> <value>` but with simplified key
+    * format.
+    *
+    * Automatically:
+    *   - Validates the new value according to the expected data type
+    *   - Saves the updated configuration to file
+    *   - Reinitializes repositories if the change affects database/dictionary
+    *     settings
+    *   - Provides feedback about whether a server restart is required
+    *
+    * @param request
+    *   The simplified update request containing the key in dot notation and new
+    *   value
+    * @return
+    *   IO effect containing either an error or the update response with
+    *   feedback
+    *
+    * @example
+    *   {{{
+    * val updateRequest = SimpleConfigUpdateRequest(
+    *   key = "database.useMongodb",
+    *   value = "true"
+    * )
+    *
+    * controller.updateConfigEntrySimple(updateRequest).map {
+    *   case Right(response) =>
+    *     println(s"Update successful: ${response.message}")
+    *     if (response.message.contains("restart required")) {
+    *       println("Please restart the server for changes to take effect")
+    *     }
+    *   case Left(error) => println(s"Update failed: ${error.message}")
+    * }
+    *   }}}
+    */
+  def updateConfigEntrySimple(
+      request: SimpleConfigUpdateRequest
+  ): IO[Either[AppError, ConfigUpdateResponse]] =
+    configService.updateConfigEntrySimple(request)
 
   /** Reloads the configuration from the configuration file. Useful for applying
     * changes made directly to the configuration file.
@@ -173,23 +241,22 @@ class ConfigurationController(configService: ConfigurationService):
   def resetToDefaults(): IO[Either[AppError, config.AppConfig]] =
     configService.resetToDefaults()
 
-  /** Gets the complete current configuration. Returns the entire configuration
-    * object as currently loaded in memory.
+  /** Gets the complete current configuration as a JSON string. Returns the
+    * entire configuration object as currently loaded in memory, serialized to
+    * JSON.
     *
     * @return
     *   IO effect containing either an error or the complete current
-    *   configuration
+    *   configuration as a JSON string
     *
     * @example
     *   {{{
     * controller.getCurrentConfig().map {
-    *   case Right(config) =>
-    *     println(s"Server: ${config.server.host}:${config.server.port}")
-    *     println(s"Database: ${config.database.databaseName}")
-    *     println(s"Dictionaries: ${config.dictionary.basePath}")
+    *   case Right(jsonString) =>
+    *     println(s"Configuration JSON: $jsonString")
     *   case Left(error) => println(s"Error getting config: ${error.message}")
     * }
     *   }}}
     */
-  def getCurrentConfig(): IO[Either[AppError, config.AppConfig]] =
-    configService.getCurrentConfig().map(Right(_))
+  def getCurrentConfig: IO[Right[Nothing, AppConfig]] =
+    configService.getCurrentConfig.map(Right(_))

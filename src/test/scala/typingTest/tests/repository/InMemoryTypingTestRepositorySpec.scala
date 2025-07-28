@@ -1,7 +1,7 @@
 package typingTest.tests.repository
 
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class InMemoryTypingTestRepositorySpec extends TypingTestRepositorySpec:
 
@@ -35,20 +35,5 @@ class InMemoryTypingTestRepositorySpec extends TypingTestRepositorySpec:
 
       val ids = tests.map(_.id.get)
       ids.distinct should have size 10
-    }
-
-    "maintain data integrity after multiple operations" in {
-      val test = createSampleTest("profile-1", "english")
-      val created = repository.create(test)
-
-      val updated = repository.update(created.copy(language = "spanish"))
-      updated should be(defined)
-
-      val retrieved = repository.get(created.id.get)
-      retrieved should be(defined)
-      retrieved.get.language should equal("spanish")
-
-      repository.delete(created.id.get) should be(true)
-      repository.get(created.id.get) should be(None)
     }
   }

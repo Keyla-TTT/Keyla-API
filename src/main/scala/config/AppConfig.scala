@@ -1,10 +1,17 @@
 package config
 
+import analytics.repository.{
+  InMemoryStatisticsRepository,
+  MongoStatisticsRepository,
+  StatisticsRepository
+}
 import cats.effect.IO
 import cats.effect.std.Console
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import common.DatabaseInfos
 import typingTest.dictionary.repository.{
+  CachedRepository,
   DictionaryRepository,
   FileDictionaryRepository
 }
@@ -14,7 +21,6 @@ import typingTest.tests.repository.{
   TypingTestRepository
 }
 import users_management.repository.{
-  DatabaseInfos,
   InMemoryProfileRepository,
   MongoProfileRepository,
   ProfileRepository
@@ -31,10 +37,6 @@ import scala.util.{Failure, Success, Try}
   *   MongoDB connection URI with authentication if needed
   * @param databaseName
   *   Name of the MongoDB database to use
-  * @param profilesCollection
-  *   Collection name for storing user profiles
-  * @param testsCollection
-  *   Collection name for storing typing test results
   * @param useMongoDb
   *   Whether to use MongoDB (true) or in-memory storage (false)
   *
@@ -48,37 +50,71 @@ import scala.util.{Failure, Success, Try}
   *   }}}
   */
 case class DatabaseConfig(
-    mongoUri: String = "mongodb://localhost:27017",
-    databaseName: String = "keyla_db",
-    profilesCollection: String = "profiles",
-    testsCollection: String = "typing_tests",
+    mongoUri: String,
+    databaseName: String,
     useMongoDb: Boolean = false
 )
 
-/** Configuration settings for the HTTP server. Controls where the server binds
-  * and CORS behavior. Note: Host and port changes require a server restart to
-  * take effect.
+/** Configuration settings for the HTTP server. Controls where the server binds.
+  * Note: Host and port changes require a server restart to take effect.
   *
   * @param host
   *   The host address to bind the server to (e.g., "localhost", "0.0.0.0")
   * @param port
   *   The port number to bind the server to (1-65535)
-  * @param enableCors
-  *   Whether to enable Cross-Origin Resource Sharing headers
+  * @param threadPool
+  *   Thread pool configuration for optimal production performance
   *
   * @example
   *   {{{
   * val serverConfig = ServerConfig(
   *   host = "0.0.0.0",  // Listen on all interfaces
   *   port = 9090,
-  *   enableCors = true
+  *   threadPool = ThreadPoolConfig(
+  *     coreSize = 16,
+  *     maxSize = 32,
+  *     keepAliveSeconds = 60
+  *   )
   * )
   *   }}}
   */
 case class ServerConfig(
     host: String = "localhost",
     port: Int = 8080,
-    enableCors: Boolean = true
+    threadPool: ThreadPoolConfig
+)
+
+/** Configuration for the server's thread pool to optimize performance and
+  * resource usage in production environments.
+  *
+  * @param coreSize
+  *   Number of core threads to maintain in the pool (default: CPU cores)
+  * @param maxSize
+  *   Maximum number of threads in the pool (default: 2x CPU cores)
+  * @param keepAliveSeconds
+  *   How long to keep idle threads alive before terminating them
+  * @param queueSize
+  *   Size of the work queue for pending tasks (0 = unbounded)
+  * @param threadNamePrefix
+  *   Prefix for thread names for easier debugging and monitoring
+  *
+  * @example
+  *   {{{
+  * val threadConfig = ThreadPoolConfig(
+  *   coreSize = 8,
+  *   maxSize = 16,
+  *   keepAliveSeconds = 30,
+  *   queueSize = 1000,
+  *   threadNamePrefix = "keyla-api"
+  * )
+  *   }}}
+  */
+case class ThreadPoolConfig(
+    coreSize: Int,
+    maxSize: Int,
+    keepAliveSeconds: Int,
+    queueSize: Int,
+    threadNamePrefix: String
 )
 
 /** Configuration settings for dictionary file management. Controls where
@@ -101,9 +137,8 @@ case class ServerConfig(
   *   }}}
   */
 case class DictionaryConfig(
-    basePath: String = "src/main/resources/dictionaries",
-    fileExtension: String = ".txt",
-    autoCreateDirectories: Boolean = true
+    basePath: String,
+    autoCreateDirectories: Boolean
 )
 
 /** Main application configuration containing all configuration sections. This
@@ -128,10 +163,10 @@ case class DictionaryConfig(
   *   }}}
   */
 case class AppConfig(
-    database: DatabaseConfig = DatabaseConfig(),
-    server: ServerConfig = ServerConfig(),
-    dictionary: DictionaryConfig = DictionaryConfig(),
-    version: String = "1.0.0"
+    database: DatabaseConfig,
+    server: ServerConfig,
+    dictionary: DictionaryConfig,
+    version: String
 )
 
 /** Companion object for AppConfig providing JSON serialization, file
@@ -143,24 +178,53 @@ case class AppConfig(
   *   - Repository creation based on configuration settings
   *   - Default configuration generation
   */
-object AppConfig:
-  // JSON codecs for serialization/deserialization
+object ConfigUtils:
   given JsonValueCodec[DatabaseConfig] = JsonCodecMaker.make
   given JsonValueCodec[ServerConfig] = JsonCodecMaker.make
   given JsonValueCodec[DictionaryConfig] = JsonCodecMaker.make
+  given JsonValueCodec[ThreadPoolConfig] = JsonCodecMaker.make
   given JsonValueCodec[AppConfig] = JsonCodecMaker.make
 
   private val CONFIG_FILENAME = "keyla-config.json"
+  private val APP_NAME = "keyla-api"
 
-  /** Gets the full path to the configuration file. The config file is always
-    * stored in the current working directory.
+  /** Gets the appropriate configuration directory based on the environment.
+    * Uses standard Linux application data directories:
+    *   - System-wide: /var/lib/keyla-api/ (if running as root)
+    *   - User-specific: ~/.local/share/keyla-api/ (recommended)
+    *   - Fallback: current working directory
+    *
+    * @return
+    *   Absolute path to the configuration directory
+    */
+  private def getConfigDirectory: String =
+    val isRoot = System.getProperty("user.name") == "root"
+    val homeDir = System.getProperty("user.home")
+
+    if isRoot then s"/var/lib/$APP_NAME"
+    else s"$homeDir/.local/share/$APP_NAME"
+
+  /** Gets the full path to the configuration file. The config file is stored in
+    * the standard application data directory for the current user.
     *
     * @return
     *   Absolute path to the configuration file
     */
   def getConfigPath: String =
-    val userDir = System.getProperty("user.dir")
-    s"$userDir/$CONFIG_FILENAME"
+    val configDir = getConfigDirectory
+    s"$configDir/$CONFIG_FILENAME"
+
+  /** Ensures the configuration directory exists, creating it if necessary. This
+    * is called before saving configuration files.
+    *
+    * @return
+    *   IO effect that completes when the directory is ready
+    */
+  private def ensureConfigDirectory(): IO[Unit] =
+    IO {
+      val configDir = new File(getConfigDirectory)
+      if !configDir.exists() then configDir.mkdirs()
+    }
 
   /** Loads configuration from file or creates a default configuration if the
     * file doesn't exist. This is the main entry point for application
@@ -180,19 +244,47 @@ object AppConfig:
   def loadOrCreateDefault(): IO[AppConfig] =
     for
       configPath <- IO.pure(getConfigPath)
+      configDir <- IO.pure(getConfigDirectory)
+      _ <- Console[IO].println(s"Configuration directory: $configDir")
       config <- loadFromFile(configPath).flatMap {
         case Some(config) =>
           Console[IO].println(s"Loaded configuration from: $configPath") *> IO
             .pure(config)
         case None =>
-          val defaultConfig = AppConfig()
-          saveToFile(defaultConfig, configPath) *>
-            Console[IO].println(
+          val defaultConfig = getDefaultConfig
+          for
+            _ <- saveToFile(defaultConfig, configPath)
+            _ <- Console[IO].println(
               s"Created default configuration at: $configPath"
-            ) *>
-            IO.pure(defaultConfig)
+            )
+          yield defaultConfig
       }
     yield config
+
+  def getDefaultConfig: AppConfig =
+    AppConfig(
+      database = DatabaseConfig(
+        mongoUri = "mongodb://localhost:27017",
+        databaseName = "keyla_db",
+        useMongoDb = false
+      ),
+      server = ServerConfig(
+        host = "localhost",
+        port = 8080,
+        threadPool = ThreadPoolConfig(
+          coreSize = Runtime.getRuntime.availableProcessors(),
+          maxSize = Runtime.getRuntime.availableProcessors() * 2,
+          keepAliveSeconds = 60,
+          queueSize = 0,
+          threadNamePrefix = "keyla-api"
+        )
+      ),
+      dictionary = DictionaryConfig(
+        basePath = "src/main/resources/dictionaries",
+        autoCreateDirectories = true
+      ),
+      version = "1.0.0"
+    )
 
   /** Loads configuration from a specific file path. Returns None if the file
     * doesn't exist or cannot be parsed.
@@ -209,6 +301,7 @@ object AppConfig:
       if file.exists() && file.canRead then
         Try {
           val content = Files.readString(Paths.get(filePath))
+          println(s"Reading configuration from: $filePath")
           readFromString[AppConfig](content)
         } match
           case Success(config) => Some(config)
@@ -231,68 +324,21 @@ object AppConfig:
     *   if the file cannot be written
     */
   def saveToFile(config: AppConfig, filePath: String): IO[Unit] =
-    IO {
-      try
-        val jsonContent =
-          writeToString(config, WriterConfig.withIndentionStep(2))
-        Files.write(Paths.get(filePath), jsonContent.getBytes)
-      catch
-        case ex: Exception =>
-          println(s"Failed to save config file: ${ex.getMessage}")
-          throw ex
-    }
-
-  /** Creates configuration from environment variables. Useful for containerized
-    * deployments where configuration is provided via environment.
-    *
-    * Environment variable mappings:
-    *   - MONGO_URI -> database.mongoUri
-    *   - DB_NAME -> database.databaseName
-    *   - PROFILES_COLLECTION -> database.profilesCollection
-    *   - TESTS_COLLECTION -> database.testsCollection
-    *   - USE_MONGODB -> database.useMongoDb
-    *   - SERVER_HOST -> server.host
-    *   - SERVER_PORT -> server.port
-    *   - ENABLE_CORS -> server.enableCors
-    *   - DICT_BASE_PATH -> dictionary.basePath
-    *   - DICT_FILE_EXT -> dictionary.fileExtension
-    *   - DICT_AUTO_CREATE_DIRS -> dictionary.autoCreateDirectories
-    *
-    * @return
-    *   AppConfig with values from environment variables or defaults
-    *
-    * @example
-    *   {{{
-    * // Set environment variables:
-    * // export SERVER_PORT=9090
-    * // export USE_MONGODB=true
-    * val config = AppConfig.fromEnvironment
-    *   }}}
-    */
-  def fromEnvironment: AppConfig = AppConfig(
-    database = DatabaseConfig(
-      mongoUri = sys.env.getOrElse("MONGO_URI", "mongodb://localhost:27017"),
-      databaseName = sys.env.getOrElse("DB_NAME", "keyla_db"),
-      profilesCollection = sys.env.getOrElse("PROFILES_COLLECTION", "profiles"),
-      testsCollection = sys.env.getOrElse("TESTS_COLLECTION", "typing_tests"),
-      useMongoDb =
-        sys.env.getOrElse("USE_MONGODB", "true").toLowerCase == "true"
-    ),
-    server = ServerConfig(
-      host = sys.env.getOrElse("SERVER_HOST", "localhost"),
-      port =
-        sys.env.getOrElse("SERVER_PORT", "8080").toIntOption.getOrElse(8080),
-      enableCors =
-        sys.env.getOrElse("ENABLE_CORS", "true").toLowerCase == "true"
-    ),
-    dictionary = DictionaryConfig(
-      basePath =
-        sys.env.getOrElse("DICT_BASE_PATH", "src/main/resources/dictionaries"),
-      fileExtension = sys.env.getOrElse("DICT_FILE_EXT", ".txt"),
-      autoCreateDirectories =
-        sys.env.getOrElse("DICT_AUTO_CREATE_DIRS", "true").toLowerCase == "true"
-    )
-  )
+    for
+      _ <- ensureConfigDirectory()
+      _ <- IO {
+        try
+          println(s"Saving ${config} configuration to: $filePath")
+          val jsonContent =
+            writeToString(config, WriterConfig.withIndentionStep(2))
+          println(s"JSON content: $jsonContent")
+          Files.write(Paths.get(filePath), jsonContent.getBytes)
+        catch
+          case ex: Exception =>
+            println(s"Failed to save config file: ${ex.getMessage}")
+            throw ex
+      }
+    yield ()
 
   /** Creates a profile repository instance based on the configuration. Returns
     * either a MongoDB-backed or in-memory repository.
@@ -306,7 +352,7 @@ object AppConfig:
   def createProfileRepository(config: AppConfig): ProfileRepository =
     if config.database.useMongoDb then
       val dbInfos = DatabaseInfos(
-        collectionName = config.database.profilesCollection,
+        collectionName = "profiles", // Hardcoded collection name
         mongoUri = config.database.mongoUri,
         databaseName = config.database.databaseName
       )
@@ -325,7 +371,7 @@ object AppConfig:
   def createTypingTestRepository(config: AppConfig): TypingTestRepository =
     if config.database.useMongoDb then
       val dbInfos = DatabaseInfos(
-        collectionName = config.database.testsCollection,
+        collectionName = "typing_tests", // Hardcoded collection name
         mongoUri = config.database.mongoUri,
         databaseName = config.database.databaseName
       )
@@ -343,7 +389,17 @@ object AppConfig:
     *   extension
     */
   def createDictionaryRepository(config: AppConfig): DictionaryRepository =
-    FileDictionaryRepository(
-      config.dictionary.basePath,
-      config.dictionary.fileExtension
+    println(
+      s"Creating dictionary repository with base path: ${config.dictionary.basePath}"
     )
+    CachedRepository(FileDictionaryRepository(config.dictionary.basePath))
+
+  def createStatisticsRepository(config: AppConfig): StatisticsRepository =
+    if config.database.useMongoDb then
+      val dbInfos = DatabaseInfos(
+        collectionName = "statistics",
+        mongoUri = config.database.mongoUri,
+        databaseName = config.database.databaseName
+      )
+      MongoStatisticsRepository(dbInfos)
+    else InMemoryStatisticsRepository()

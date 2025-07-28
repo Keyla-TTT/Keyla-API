@@ -1,6 +1,6 @@
 package api.models
 
-import api.models.ErrorResponse
+import api.models.common.ErrorResponse
 import sttp.model.StatusCode
 
 /** Sealed trait representing all possible application errors. Provides
@@ -9,7 +9,7 @@ import sttp.model.StatusCode
   *
   * Each error includes:
   *   - A descriptive message for users/logs
-  *   - A stable error code for programmatic handling
+  *   - A stable error code for programmatic identification
   *   - An appropriate HTTP status code for REST API responses
   *
   * @param message
@@ -60,20 +60,6 @@ object AppError:
         s"Test with id '$testId' is already completed",
         "TEST_ALREADY_COMPLETED",
         StatusCode.BadRequest
-      )
-
-  case class LanguageNotSupported(language: String)
-      extends AppError(
-        s"Language '$language' is not supported",
-        "LANGUAGE_NOT_FOUND",
-        StatusCode.NotFound
-      )
-
-  case class DictionaryNotFound(language: String, dictionaryName: String)
-      extends AppError(
-        s"Dictionary '$dictionaryName' not found for language '$language'",
-        "DICTIONARY_NOT_FOUND",
-        StatusCode.NotFound
       )
 
   case class ValidationError(field: String, reason: String)
@@ -199,6 +185,13 @@ object AppError:
         StatusCode.BadRequest
       )
 
+  case class DictionaryNotFound(dictionaryName: String)
+      extends AppError(
+        s"Dictionary '$dictionaryName' not found",
+        "DICTIONARY_NOT_FOUND",
+        StatusCode.NotFound
+      )
+
   // Server errors (5xx)
   case class ProfileCreationFailed(reason: String)
       extends AppError(
@@ -232,6 +225,20 @@ object AppError:
       extends AppError(
         s"Unexpected error: $reason",
         "INTERNAL_ERROR",
+        StatusCode.InternalServerError
+      )
+
+  case class StatisticsSavingFailed(reason: String)
+      extends AppError(
+        s"Failed to saving Statistics: $reason",
+        "STATISTICS_SAVING_ERROR",
+        StatusCode.InternalServerError
+      )
+
+  case class AnalyticsCalculationFailed(reason: String)
+      extends AppError(
+        s"Failed to calculate analytics: $reason",
+        "ANALYTICS_CALCULATION_ERROR",
         StatusCode.InternalServerError
       )
 

@@ -1,20 +1,24 @@
 package api.server
 
-import api.endpoints.ApiEndpoints
-import api.routes.ApiRoutes
-import api.controllers.TypingTestController
+import api.controllers.analytics.AnalyticsController
+import api.controllers.config.ConfigurationController
+import api.controllers.stats.StatsController
+import api.controllers.typingtest.TypingTestController
+import api.controllers.users.UsersController
+import api.endpoints.AllEndpoints
+import api.routes.AllRoutes
 import cats.effect.{ExitCode, IO, Resource}
 import cats.syntax.all.*
-import com.comcast.ip4s.*
-import org.http4s.HttpApp
+import org.http4s.{HttpApp, HttpRoutes, Request, Response}
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.Router
-import sttp.tapir.server.http4s.Http4sServerInterpreter
-import sttp.tapir.swagger.bundle.SwaggerInterpreter
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import sttp.tapir.server.http4s.Http4sServerInterpreter
+import sttp.tapir.swagger.bundle.SwaggerInterpreter
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.*
 
 /** HTTP server implementation for the Keyla Typing Test API using Http4s and
   * Blaze.
@@ -106,7 +110,14 @@ import scala.concurrent.ExecutionContext
   * }
   *   }}}
   */
-class ApiServer(controller: TypingTestController):
+class ApiServer(
+    usersController: UsersController,
+    typingTestController: TypingTestController,
+    statsController: StatsController,
+    analyticsController: AnalyticsController,
+    configurationController: ConfigurationController,
+    appConfig: config.AppConfig
+):
 
   /** Logger instance for structured logging throughout the server lifecycle.
     * Uses SLF4J backend for integration with standard logging frameworks.
@@ -116,14 +127,20 @@ class ApiServer(controller: TypingTestController):
   /** API routes handler that interprets Tapir endpoints into Http4s routes.
     * Connects the controller business logic to HTTP request/response handling.
     */
-  private val apiRoutes = ApiRoutes(controller)
+  private val apiRoutes = AllRoutes.createRoutes(
+    usersController,
+    typingTestController,
+    statsController,
+    analyticsController,
+    configurationController
+  )
 
   /** Swagger/OpenAPI documentation endpoints generated from the API
     * definitions. Provides interactive API documentation and machine-readable
     * OpenAPI specs.
     */
   private val swaggerEndpoints = SwaggerInterpreter()
-    .fromEndpoints[IO](ApiEndpoints.getAllEndpoints, "Typing Test API", "1.0.0")
+    .fromEndpoints[IO](AllEndpoints.getAllEndpoints, "Typing Test API", "1.0.0")
 
   /** Http4s routes for serving the Swagger documentation. Includes both the
     * interactive Swagger UI and raw OpenAPI specification.
@@ -137,44 +154,16 @@ class ApiServer(controller: TypingTestController):
     */
   private val httpApp: HttpApp[IO] = Router(
     "/" -> (Http4sServerInterpreter[IO]().toRoutes(
-      apiRoutes.routes
+      apiRoutes
     ) <+> swaggerRoutes)
   ).orNotFound
 
-  /** Execution context for the HTTP server operations. Uses the global
-    * execution context for simplicity - in production environments consider
-    * using a dedicated thread pool.
+  /** Creates a managed execution context resource for the HTTP server
+    * operations. Uses a dedicated thread pool optimized for production
+    * workloads with proper lifecycle management and graceful shutdown.
     */
-  implicit val ec: ExecutionContext =
-    scala.concurrent.ExecutionContext.Implicits.global
-
-  /** Starts the HTTP server with default settings (localhost:8080). This is a
-    * fire-and-forget operation that runs the server indefinitely.
-    *
-    * The server will:
-    *   1. Bind to localhost on port 8080
-    *   2. Start accepting HTTP requests
-    *   3. Run indefinitely until the JVM terminates
-    *   4. Return ExitCode.Success when shutdown
-    *
-    * @return
-    *   IO effect that starts the server and completes with ExitCode.Success
-    *
-    * @example
-    *   {{{
-    * val server = ApiServer(controller)
-    *
-    * // Start server - this will block until JVM shutdown
-    * server.serve.unsafeRunSync()
-    *   }}}
-    */
-  def serve: IO[ExitCode] = BlazeServerBuilder[IO]
-    .withExecutionContext(ec)
-    .bindHttp(8080, "localhost")
-    .withHttpApp(httpApp)
-    .resource
-    .use(_ => IO.never)
-    .as(ExitCode.Success)
+  private val executionContextResource: Resource[IO, ExecutionContext] =
+    ExecutionContextManager.create(appConfig.server.threadPool)
 
   /** Starts the HTTP server with custom host and port settings. This allows
     * binding to specific network interfaces and ports for different
@@ -198,13 +187,16 @@ class ApiServer(controller: TypingTestController):
     * server.serveOn(8080, "192.168.1.100").unsafeRunSync()
     *   }}}
     */
-  def serveOn(port: Int, host: String): IO[ExitCode] = BlazeServerBuilder[IO]
-    .withExecutionContext(ec)
-    .bindHttp(port, host)
-    .withHttpApp(httpApp)
-    .resource
-    .use(_ => IO.never)
-    .as(ExitCode.Success)
+  def serveOn(port: Int, host: String): IO[ExitCode] =
+    executionContextResource.use { ec =>
+      BlazeServerBuilder[IO]
+        .withExecutionContext(ec)
+        .bindHttp(port, host)
+        .withHttpApp(httpApp)
+        .resource
+        .use(_ => IO.never)
+        .as(ExitCode.Success)
+    }
 
   /** Creates a managed resource for the HTTP server with configurable host and
     * port. This is the recommended approach for production applications as it
@@ -247,11 +239,13 @@ class ApiServer(controller: TypingTestController):
       port: Int = 8080,
       host: String = "localhost"
   ): Resource[IO, org.http4s.server.Server] =
-    BlazeServerBuilder[IO]
-      .withExecutionContext(ec)
-      .bindHttp(port, host)
-      .withHttpApp(httpApp)
-      .resource
+    executionContextResource.flatMap { ec =>
+      BlazeServerBuilder[IO]
+        .withExecutionContext(ec)
+        .bindHttp(port, host)
+        .withHttpApp(httpApp)
+        .resource
+    }
 
 /** Companion object for ApiServer providing factory methods and utilities.
   */
@@ -275,6 +269,19 @@ object ApiServer:
     * server.serve.unsafeRunSync()
     *   }}}
     */
-  def apply(controller: TypingTestController): ApiServer = new ApiServer(
-    controller
-  )
+  def apply(
+      usersController: UsersController,
+      typingTestController: TypingTestController,
+      statsController: StatsController,
+      analyticsController: AnalyticsController,
+      configurationController: ConfigurationController,
+      appConfig: config.AppConfig
+  ): ApiServer =
+    new ApiServer(
+      usersController,
+      typingTestController,
+      statsController,
+      analyticsController,
+      configurationController,
+      appConfig
+    )

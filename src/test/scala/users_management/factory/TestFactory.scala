@@ -1,9 +1,9 @@
 package users_management.factory
 
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.Matcher
 import org.scalatest.matchers.should.Matchers
 import users_management.factory.UserFactory
-import org.scalatest.matchers.Matcher
 
 class TestFactory extends AnyFunSuite, Matchers:
 

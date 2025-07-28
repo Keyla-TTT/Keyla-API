@@ -1,14 +1,15 @@
 package users_management.repository
 
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAll
+import common.DatabaseInfos
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.testcontainers.containers.MongoDBContainer
 import users_management.model.UserProfile
-import org.scalatest.matchers.should.Matchers
+
 import scala.compiletime.uninitialized
 
-class TestMongoDockerRepo
+class TestMongoRepo
     extends AnyFunSuite
     with BeforeAndAfter
     with BeforeAndAfterAll
@@ -27,6 +28,7 @@ class TestMongoDockerRepo
     mongoContainer.start()
 
   override def afterAll(): Unit =
+    if repository != null then repository.close()
     mongoContainer.stop()
 
   before:

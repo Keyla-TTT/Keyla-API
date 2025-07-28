@@ -4,14 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import typingTest.dictionary.loader.DictionaryLoader
 import typingTest.dictionary.model.Dictionary
-import typingTest.tests.model.{
-  CompletedInfo,
-  MergeOps,
-  ModifiersFacade,
-  NamedModifier,
-  TestMerger,
-  TypingTest
-}
+import typingTest.tests.model.*
 
 class MockDictionaryLoader extends DictionaryLoader:
   private val wordMap = Map(
@@ -25,9 +18,9 @@ class MockDictionaryLoader extends DictionaryLoader:
 
 class TypingTestFactoryTest extends AnyFlatSpec with Matchers:
   val mockLoader = new MockDictionaryLoader()
-  val dict1: Dictionary = Dictionary("dict1", "test", "/path/to/dict1.txt")
-  val dict2: Dictionary = Dictionary("dict2", "test", "/path/to/dict2.txt")
-  val emptyDict: Dictionary = Dictionary("empty", "test", "/path/to/empty.txt")
+  val dict1: Dictionary = Dictionary("dict1", "/path/to/dict1.txt")
+  val dict2: Dictionary = Dictionary("dict2", "/path/to/dict2.txt")
+  val emptyDict: Dictionary = Dictionary("empty", "/path/to/empty.txt")
 
   "TypingTestFactory" should "create a test with a single source" in {
     val test = TypingTestFactory
@@ -91,7 +84,6 @@ class TypingTestFactoryTest extends AnyFlatSpec with Matchers:
     test.modifiers shouldBe Seq("uppercase", "reverse")
     test.info shouldBe CompletedInfo()
   }
-
   it should "create a test with complex modifier chain" in {
     val test = TypingTestFactory
       .create[String]()

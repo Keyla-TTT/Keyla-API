@@ -2,6 +2,7 @@
 db.createCollection("profiles");
 db.createCollection("tests");
 db.createCollection("typingTests");
+db.createCollection("statistics");
 db.createUser({
   user: "admin",
   pwd: "admin",

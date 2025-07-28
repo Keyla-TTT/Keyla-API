@@ -1,5 +1,6 @@
 package typingTest.tests.repository
 
+import common.Repository
 import typingTest.tests.model.PersistedTypingTest
 
 /** Repository trait for managing typing tests.
@@ -8,7 +9,7 @@ import typingTest.tests.model.PersistedTypingTest
   * PersistedTypingTest entities. Implementations of this trait should handle
   * the persistence layer operations for typing tests (e.g. database access).
   */
-trait TypingTestRepository:
+trait TypingTestRepository extends Repository:
 
   /** Retrieves a typing test by its ID.
     *
@@ -68,29 +69,6 @@ trait TypingTestRepository:
     *   A list of typing tests for the specified profile
     */
   def getByProfileId(profileId: String): List[PersistedTypingTest]
-
-  /** Retrieves typing tests by language.
-    *
-    * @param language
-    *   The language to filter by
-    * @return
-    *   A list of typing tests in the specified language
-    */
-  def getByLanguage(language: String): List[PersistedTypingTest]
-
-  /** Retrieves typing tests for a profile filtered by language.
-    *
-    * @param profileId
-    *   The ID of the profile
-    * @param language
-    *   The language to filter by
-    * @return
-    *   A list of typing tests for the profile in the specified language
-    */
-  def getByProfileIdAndLanguage(
-      profileId: String,
-      language: String
-  ): List[PersistedTypingTest]
 
   /** Retrieves the last non-completed test for a profile.
     *

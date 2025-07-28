@@ -1,9 +1,10 @@
 package users_management.repository
 
+import org.scalatest.BeforeAndAfter
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfter
 import users_management.model.UserProfile
+
 import scala.compiletime.uninitialized
 
 class TestInMemoryRepo extends AnyFunSuite with Matchers with BeforeAndAfter:

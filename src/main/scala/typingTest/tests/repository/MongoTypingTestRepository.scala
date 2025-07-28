@@ -1,17 +1,18 @@
 package typingTest.tests.repository
 
+import com.github.nscala_time.time.Imports.DateTime
 import com.mongodb.client.{MongoClients, MongoCollection, MongoDatabase}
+import common.DatabaseInfos
 import org.bson.Document
 import org.bson.types.ObjectId
+import typingTest.dictionary.model.Dictionary
 import typingTest.tests.model.{
   CompletedInfo,
   DefaultContext,
   PersistedTypingTest,
   TypingTest
 }
-import typingTest.dictionary.model.Dictionary
-import users_management.repository.DatabaseInfos
-import com.github.nscala_time.time.Imports.DateTime
+
 import scala.jdk.CollectionConverters.*
 
 class MongoTypingTestRepository(dbInfos: DatabaseInfos)
@@ -28,7 +29,6 @@ class MongoTypingTestRepository(dbInfos: DatabaseInfos)
     val sourcesDoc = testData.sources.map { source =>
       new Document()
         .append("name", source.name)
-        .append("language", source.language)
         .append("filePath", source.filePath)
     }.asJava
 
@@ -49,15 +49,7 @@ class MongoTypingTestRepository(dbInfos: DatabaseInfos)
       .append("profileId", test.profileId)
       .append("testData", testDataDoc)
       .append("createdAt", test.createdAt.toString)
-      .append("language", test.language)
       .append("wordCount", test.wordCount)
-      .append("completedAt", test.completedAt.map(_.toString).orNull)
-      .append("accuracy", test.accuracy.map(Double.box).orNull)
-      .append("rawAccuracy", test.rawAccuracy.map(Double.box).orNull)
-      .append("testTime", test.testTime.map(Long.box).orNull)
-      .append("errorCount", test.errorCount.map(Int.box).orNull)
-      .append("errorWordIndices", test.errorWordIndices.map(_.asJava).orNull)
-      .append("timeLimit", test.timeLimit.map(Long.box).orNull)
 
   private def fromDocument(doc: Document): PersistedTypingTest =
     val testDataDoc = doc.get("testData", classOf[Document])
@@ -66,7 +58,6 @@ class MongoTypingTestRepository(dbInfos: DatabaseInfos)
     val sources = sourcesDoc.map { sourceDoc =>
       Dictionary(
         name = sourceDoc.getString("name"),
-        language = sourceDoc.getString("language"),
         filePath = sourceDoc.getString("filePath")
       )
     }.toSet
@@ -86,30 +77,12 @@ class MongoTypingTestRepository(dbInfos: DatabaseInfos)
 
     val testData = TypingTest(sources, modifiers, completedInfo, words)
 
-    val completedAt = Option(doc.getString("completedAt")).map(DateTime.parse)
-    val accuracy = Option(doc.getDouble("accuracy")).map(_.doubleValue)
-    val rawAccuracy = Option(doc.getDouble("rawAccuracy")).map(_.doubleValue)
-    val testTime = Option(doc.getLong("testTime")).map(_.longValue)
-    val errorCount = Option(doc.getInteger("errorCount")).map(_.intValue)
-    val errorWordIndices =
-      Option(doc.getList("errorWordIndices", classOf[Integer]))
-        .map(_.asScala.map(_.intValue).toList)
-    val timeLimit = Option(doc.getLong("timeLimit")).map(_.longValue)
-
     PersistedTypingTest(
       id = Some(doc.getObjectId("_id").toString),
       profileId = doc.getString("profileId"),
       testData = testData,
       createdAt = DateTime.parse(doc.getString("createdAt")),
-      language = doc.getString("language"),
-      wordCount = doc.getInteger("wordCount"),
-      completedAt = completedAt,
-      accuracy = accuracy,
-      rawAccuracy = rawAccuracy,
-      testTime = testTime,
-      errorCount = errorCount,
-      errorWordIndices = errorWordIndices,
-      timeLimit = timeLimit
+      wordCount = doc.getInteger("wordCount")
     )
 
   override def get(id: String): Option[PersistedTypingTest] =
@@ -169,39 +142,14 @@ class MongoTypingTestRepository(dbInfos: DatabaseInfos)
         .toList
     catch case _: Exception => List()
 
-  override def getByLanguage(language: String): List[PersistedTypingTest] =
-    try
-      collection
-        .find(new Document("language", language))
-        .into(new java.util.ArrayList[Document]())
-        .asScala
-        .map(fromDocument)
-        .toList
-    catch case _: Exception => List()
-
-  override def getByProfileIdAndLanguage(
-      profileId: String,
-      language: String
-  ): List[PersistedTypingTest] =
-    try
-      val filter = new Document()
-        .append("profileId", profileId)
-        .append("language", language)
-      collection
-        .find(filter)
-        .into(new java.util.ArrayList[Document]())
-        .asScala
-        .map(fromDocument)
-        .toList
-    catch case _: Exception => List()
-
   override def getLastNonCompletedByProfileId(
       profileId: String
   ): Option[PersistedTypingTest] =
     try
       val filter = new Document()
         .append("profileId", profileId)
-        .append("completedAt", null)
+        .append("testData.info.completed", false)
+        .append("testData.info.completedDateTime", null)
       Option(
         collection
           .find(filter)
@@ -216,7 +164,8 @@ class MongoTypingTestRepository(dbInfos: DatabaseInfos)
     try
       val filter = new Document()
         .append("profileId", profileId)
-        .append("completedAt", null)
+        .append("testData.info.completed", false)
+        .append("testData.info.completedDateTime", null)
       val result = collection.deleteMany(filter)
       result.getDeletedCount.toInt
     catch case _: Exception => 0
@@ -225,7 +174,8 @@ class MongoTypingTestRepository(dbInfos: DatabaseInfos)
     try
       val filter = new Document()
         .append("_id", new ObjectId(id))
-        .append("completedAt", new Document("$ne", null))
+        .append("testData.info.completed", true)
+        .append("testData.info.completedDateTime", new Document("$ne", null))
       Option(collection.find(filter).first())
         .map(fromDocument)
     catch case _: Exception => None

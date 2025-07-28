@@ -6,7 +6,7 @@ import users_management.factory.UserFactory
 import users_management.model.UserProfile
 import users_management.repository.InMemoryProfileRepository
 
-class TestMemoryServiceWithInMemoryRepository extends AnyFlatSpec with Matchers:
+class TestServiceWithInMemoryRepository extends AnyFlatSpec with Matchers:
 
   def createCleanTestEnvironment()
       : (ProfileService, InMemoryProfileRepository, UserFactory) =

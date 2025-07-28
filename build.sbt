@@ -51,9 +51,9 @@ lazy val root = (project in file("."))
       "de.flapdoodle.embed" % "de.flapdoodle.embed.mongo" % "4.20.1" % Test,
       "org.typelevel" %% "cats-effect-testing-scalatest" % "1.5.0" % Test,
       "org.http4s" %% "http4s-blaze-client" % "0.23.17" % Test,
-      "com.softwaremill.sttp.client3" %% "core" % "3.9.8" % Test,
-      "com.softwaremill.sttp.client3" %% "cats" % "3.9.8" % Test,
-      "com.softwaremill.sttp.client3" %% "jsoniter" % "3.9.8" % Test,
+      "com.softwaremill.sttp.client3" %% "core" % "3.10.0" % Test,
+      "com.softwaremill.sttp.client3" %% "cats" % "3.10.0" % Test,
+      "com.softwaremill.sttp.client3" %% "jsoniter" % "3.10.1" % Test,
       "com.softwaremill.sttp.client3" %% "http4s-backend" % "3.9.8" % Test,
 
       // MongoDB driver
@@ -75,7 +75,7 @@ lazy val root = (project in file("."))
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-core" % "2.36.6",
 
       // Use the "provided" scope instead when the "compile-internal" scope is not supported
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.36.6" % "compile-internal",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.36.6",
       // Logging
       "org.typelevel" %% "log4cats-slf4j" % "2.7.0",
       "ch.qos.logback" % "logback-classic" % "1.2.12"

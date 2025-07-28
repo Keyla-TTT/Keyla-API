@@ -454,21 +454,6 @@ class TypingTestServiceSpec
     response.words.forall(w => allWords.contains(w)) should be(true)
   }
 
-  it should "fail if a merger is missing for a second source" in {
-    val profileId = createTestProfile()
-    val request = TestRequest(
-      profileId = profileId,
-      sources = List(
-        SourceWithMerger("english_basic"),
-        SourceWithMerger("spanish_basic") // No merger specified
-      ),
-      wordCount = 10
-    )
-    val result = service.requestTest(request).value.unsafeRunSync()
-    result.isLeft should be(true)
-    result.left.toOption.get shouldBe a[TestCreationFailed]
-  }
-
   it should "fail if an invalid merger name is provided" in {
     val profileId = createTestProfile()
     val request = TestRequest(

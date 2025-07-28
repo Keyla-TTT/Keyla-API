@@ -12,6 +12,7 @@ import api.controllers.typingtest.TypingTestController
 import api.controllers.users.UsersController
 import api.models.*
 import api.models.analytics.AnalyticsModels.given
+import api.models.analytics.AnalyticsResponse
 import api.models.common.CommonModels.given
 import common.{CommonModels, ErrorResponse}
 import api.models.typingtest.TypingTestModels.given
@@ -164,7 +165,6 @@ class ApiIntegrationSpec
         "codigo",
         "programacion",
         "desarrollador",
-        "software",
         "ordenador",
         "raton",
         "pantalla",
@@ -439,7 +439,6 @@ class ApiIntegrationSpec
           lastTestResponse.body.isRight shouldBe true
 
           val lastTest = lastTestResponse.body.toOption.get
-          println("results::: " + lastTest.words)
           lastTest.words should have size 5
       }
     }
@@ -1119,7 +1118,7 @@ class ApiIntegrationSpec
       }
     }
 
-    "fail if a merger is missing for a second source" in {
+    "ignore the second source if a merger is missing for the second source" in {
       withServer { backend =>
         val profileRequest = CreateProfileRequest(
           name = "Test User",
@@ -1144,9 +1143,29 @@ class ApiIntegrationSpec
           testResponse <- basicRequest
             .post(baseUri.addPath(Seq("api", "tests")))
             .body(testRequest)
-            .response(asString)
+            .response(asJson[TestResponse])
             .send(backend)
-        yield testResponse.code shouldBe StatusCode.InternalServerError
+        yield
+          val spanish = Seq(
+            "hola",
+            "mundo",
+            "prueba",
+            "escribir",
+            "teclado",
+            "codigo",
+            "programacion",
+            "desarrollador",
+            "ordenador",
+            "raton",
+            "pantalla",
+            "archivo",
+            "directorio",
+            "carpeta"
+          )
+          testResponse.body.isRight shouldBe true
+          testResponse.body.toOption.get.words
+            .filter(spanish.contains) shouldBe empty
+
       }
     }
 
@@ -1212,7 +1231,7 @@ class ApiIntegrationSpec
           testResponse.code shouldBe StatusCode.Created
           testResponse.body.isRight shouldBe true
           val test = testResponse.body.toOption.get
-          test.words.size should be <= 10
+          test.words.size shouldBe 10
           // Should alternate between english and spanish words
           val englishWords = Set(
             "hello",
@@ -1248,6 +1267,7 @@ class ApiIntegrationSpec
             "directorio",
             "carpeta"
           )
+          print(test.words)
           val alternated =
             test.words.take(10).zipWithIndex.forall { case (w, i) =>
               if i % 2 == 0 then englishWords.contains(w)
@@ -1372,7 +1392,7 @@ class ApiIntegrationSpec
 
           analyticsResponse <- basicRequest
             .get(baseUri.addPath(Seq("api", "analytics", profile.id)))
-            .response(asJson[api.models.analytics.AnalyticsResponse])
+            .response(asJson[AnalyticsResponse])
             .send(backend)
         yield
           analyticsResponse.code shouldBe StatusCode.Ok

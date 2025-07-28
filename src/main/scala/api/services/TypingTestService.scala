@@ -19,6 +19,7 @@ import typingTest.tests.factory.TypingTestFactory
 import typingTest.tests.model.{
   CompletedInfo,
   DefaultContext,
+  ModifiersFacade,
   PersistedTypingTest,
   TypingTest
 }
@@ -402,37 +403,40 @@ class TypingTestServiceImpl(
   ): AppResult[TypingTest[String] & DefaultContext] =
     AppResult.attemptBlocking(
       IO.blocking {
-        val testBuilder0 = TypingTestFactory
+        val builder = TypingTestFactory
           .create[String]()
           .useLoader(dictionaryLoader)
-          .useSource(dictionaries.head)
+          .useSource(dictionaries.head, randomized = true)
+          .mergeMultiple(
+            dictionaries.tail.zip(
+              request.sources.tail
+                .map(m =>
+                  MergerResolver.getMerger(m.merger.getOrElse("concatenate"))
+                )
+                .filter(_.isDefined)
+                .map(_.get)
+            )
+          )
+          .useModifiers(
+            request.modifiers
+              .map(ModifierResolver.getModifier)
+              .filter(_.isDefined)
+              .map(_.get)
+          )
 
-        val testBuilder =
-          dictionaries.tail.zip(request.sources.tail).foldLeft(testBuilder0) {
-            case (builder, (dict, srcWithMerger)) =>
-              val merger =
-                srcWithMerger.merger.flatMap(MergerResolver.getMerger).get
-              builder.mergeWith(merger)(dict)
-          }
-
-        val finalBuilder =
-          request.modifiers.foldLeft(testBuilder) { (builder, modifierName) =>
-            ModifierResolver.getModifier(modifierName) match
-              case Some(modifier) => builder.useModifier(modifier)
-              case None           => builder
-          }
-
-        val fullTest = finalBuilder.build
-        val limitedWords = fullTest.words.take(request.wordCount)
+        val fullTest = builder.build
 
         TypingTest(
           sources = fullTest.sources,
           modifiers = fullTest.modifiers,
           info = fullTest.info,
-          words = limitedWords
+          words = fullTest.words.take(request.wordCount)
         )
       }
-    )(error => TestCreationFailed(error.getMessage))
+    )(error =>
+      println(error.getMessage)
+      TestCreationFailed(error.getMessage)
+    )
 
   def getTestById(testId: String): AppResult[TestResponse] =
     AppResult

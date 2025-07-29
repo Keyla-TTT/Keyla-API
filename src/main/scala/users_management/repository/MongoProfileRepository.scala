@@ -1,13 +1,17 @@
 package users_management.repository
 
 import com.mongodb.client.{MongoClients, MongoCollection, MongoDatabase}
+import common.DatabaseInfos
 import org.bson.Document
 import org.bson.types.ObjectId
 import users_management.model.{Profile, UserProfile}
 
 import scala.jdk.CollectionConverters.*
+import scala.util.Try
 
-class MongoProfileRepository(dbInfos: DatabaseInfos) extends ProfileRepository:
+class MongoProfileRepository(dbInfos: DatabaseInfos)
+    extends ProfileRepository
+    with AutoCloseable:
 
   private val mongoClient = MongoClients.create(dbInfos.mongoUri)
   private val database: MongoDatabase =
@@ -82,5 +86,5 @@ class MongoProfileRepository(dbInfos: DatabaseInfos) extends ProfileRepository:
         .toList
     catch case _: Exception => List()
 
-  def close(): Unit =
-    mongoClient.close()
+  override def close(): Unit =
+    Try(mongoClient.close())

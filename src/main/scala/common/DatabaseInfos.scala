@@ -1,4 +1,4 @@
-package users_management.repository
+package common
 
 /** Case class representing MongoDB database connection and collection
   * information.

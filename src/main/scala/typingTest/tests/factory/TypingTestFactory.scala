@@ -3,15 +3,11 @@ package typingTest.tests.factory
 import typingTest.dictionary.loader.DictionaryLoader
 import typingTest.dictionary.model.Dictionary
 import typingTest.tests.model.ModifiersFacade.onlyOfType
-import typingTest.tests.model.{
-  CompletedInfo,
-  DefaultContext,
-  MergeOps,
-  NamedModifier,
-  TypingTest
-}
+import typingTest.tests.model.*
+import typingTest.tests.model.MergeOps
 
 import scala.reflect.ClassTag
+import scala.util.Random
 
 private case class TestBuilder[O](
     private val loader: Option[DictionaryLoader] = None,
@@ -24,20 +20,39 @@ object TestBuilder:
     def useLoader(loader: DictionaryLoader): TestBuilder[O] =
       builder.copy(loader = Some(loader))
     def mergeWith(merger: MergeOps[Any])(source: Dictionary): TestBuilder[O] =
-      require(
-        builder.sources.nonEmpty,
-        "First source must be defined before merging"
-      )
       builder.copy(
         mergers = builder.mergers :+ merger,
         sources = builder.sources :+ source
       )
-    def useSource(source: Dictionary): TestBuilder[O] =
+    def useModifiers(modifiers: Seq[NamedModifier[Any, O]]): TestBuilder[O] =
+      builder.copy(modifiers = builder.modifiers ++ modifiers)
+    def mergeMultiple(
+        sources: Seq[(Dictionary, MergeOps[Any])]
+    ): TestBuilder[O] =
+      require(
+        builder.sources.nonEmpty,
+        "At least one source must be provided for merging"
+      )
+      val (srcs, merges) = sources.unzip
+      builder.copy(
+        mergers = builder.mergers ++ merges,
+        sources = builder.sources ++ srcs
+      )
+    def useSource(
+        source: Dictionary,
+        randomized: Boolean = false
+    ): TestBuilder[O] =
       require(
         builder.sources.isEmpty,
         "Source already exists, cannot add a new one"
       )
-      builder.copy(sources = Seq(source))
+      builder.copy(
+        sources = Seq(source),
+        mergers =
+          if randomized
+          then Seq(TestMerger.randomMix)
+          else Seq(TestMerger.concatenate)
+      )
     def useModifier(modifier: NamedModifier[Any, O]): TestBuilder[O] =
       builder.copy(modifiers = builder.modifiers :+ modifier)
     def build: TypingTest[O] & DefaultContext =
@@ -46,9 +61,10 @@ object TestBuilder:
       val modifiers =
         if builder.modifiers.isEmpty then Seq(onlyOfType[O])
         else builder.modifiers
+      // loads and shuffle by default
       val words = builder.sources.map(builder.loader.get.loadWords)
-      val zipped = words.tail.zip(builder.mergers)
-      val mergedWords = zipped.foldLeft[Seq[?]](words.head)((acc, mergeOps) =>
+      val zipped = words.zip(builder.mergers)
+      val mergedWords = zipped.foldLeft(Seq())((acc, mergeOps) =>
         mergeOps._2.merge(acc, mergeOps._1)
       )
       val modifiedWords = modifiers.tail
@@ -69,3 +85,17 @@ object TypingTestFactory:
     sources = Seq.empty,
     modifiers = Seq.empty
   )
+
+  extension (test: TypingTest[String] & DefaultContext)
+    def copy(
+        words: Seq[String] = test.words,
+        info: CompletedInfo = test.info,
+        sources: Set[Dictionary] = test.sources,
+        modifiers: Seq[String] = test.modifiers
+    ): TypingTest[String] & DefaultContext =
+      TypingTest(
+        sources = sources,
+        words = words,
+        modifiers = modifiers,
+        info = info
+      )

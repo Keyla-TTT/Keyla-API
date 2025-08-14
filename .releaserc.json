@@ -10,8 +10,8 @@
       {
         "assets": [
           {
-            "path": "target/scala-3.7.0/*.jar",
-            "label": "JAR File"
+            "path": "target/scala-3.7.0/*.zip",
+            "label": "Zip File"
           }
         ],
         "successComment": false,

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - hotfix/*
 
 permissions:
   contents: write
@@ -125,8 +126,8 @@ jobs:
           java-version: '21'
           cache: 'sbt'
 
-      - name: Build with SBT
-        run: sbt package
+      - name: Build Universal Package
+        run: sbt Universal/packageBin
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -135,6 +136,31 @@ jobs:
 
       - name: Install Semantic Release
         run: npm install semantic-release @semantic-release/git @semantic-release/github @semantic-release/commit-analyzer @semantic-release/release-notes-generator
+
+      - name: Create release assets folder
+        run: mkdir -p release-assets
+
+      - name: Copy Universal package to release assets
+        run: cp target/universal/*.zip release-assets/
+
+      - name: Create semantic-release config
+        run: |
+          cat > .releaserc.json << EOF
+          {
+            "branches": ["main"],
+            "plugins": [
+              "@semantic-release/commit-analyzer",
+              "@semantic-release/release-notes-generator",
+              "@semantic-release/changelog",
+              ["@semantic-release/github", {
+                "assets": [
+                  {"path": "release-assets/*.zip", "label": "Universal Package"}
+                ]
+              }],
+              "@semantic-release/git"
+            ]
+          }
+          EOF
 
       - name: Run Semantic Release
         env:

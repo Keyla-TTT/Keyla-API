@@ -1,6 +1,7 @@
 {
   "branches": [
-    "main"
+    "main",
+    "hotfix/*"
   ],
   "plugins": [
     "@semantic-release/commit-analyzer",
@@ -10,8 +11,8 @@
       {
         "assets": [
           {
-            "path": "target/scala-3.7.0/*.jar",
-            "label": "JAR File"
+            "path": "target/universal/*.zip",
+            "label": "Zip File"
           }
         ],
         "successComment": false,

@@ -107,8 +107,8 @@ jobs:
           java-version: '21'
           cache: 'sbt'
 
-      - name: Build Universal Package
-        run: sbt Universal/packageBin
+      - name: Build with SBT
+        run: sbt package
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

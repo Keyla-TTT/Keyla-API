@@ -126,7 +126,7 @@ jobs:
           cache: 'sbt'
 
       - name: Build with SBT
-        run: sbt package
+        run: sbt Universal/packageBin
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

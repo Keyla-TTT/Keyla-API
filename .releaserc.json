@@ -1,7 +1,6 @@
 {
   "branches": [
-    "main",
-    "hotfix/*"
+    "release/*"
   ],
   "plugins": [
     "@semantic-release/commit-analyzer",

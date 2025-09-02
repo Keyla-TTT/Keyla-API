@@ -11,6 +11,24 @@ permissions:
   id-token: write
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sbt/setup-sbt@v1
+
+      - name: Cache sbt
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.coursier/cache
+          key: ${{ runner.os }}-sbt-${{ hashFiles('**/*.sbt') }}
+          restore-keys: ${{ runner.os }}-sbt-
 
   docs:
     runs-on: ubuntu-latest
@@ -107,8 +125,8 @@ jobs:
           java-version: '21'
           cache: 'sbt'
 
-      - name: Build Universal Package
-        run: sbt Universal/packageBin
+      - name: Build with SBT
+        run: sbt package
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -124,15 +142,30 @@ jobs:
       - name: Copy Universal package to release assets
         run: cp target/universal/*.zip release-assets/
 
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create release branch
+        id: release_branch
+        run: |
+          VERSION=$(npx -y semantic-release --dry-run | grep "The next release version is" | awk '{print $6}')
+          BRANCH=release/v$VERSION
+          echo "Creating release branch: $BRANCH"
+          git checkout -b $BRANCH
+          git push -u origin $BRANCH
+          echo "BRANCH_NAME=$BRANCH" >> $GITHUB_ENV
+
       - name: Run Semantic Release
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
       - name: Trigger release repo update
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           repository: Keyla-TTT/Keyla-RELEASE
           event-type: new-release
           client-payload: |

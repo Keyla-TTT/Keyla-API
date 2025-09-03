@@ -22,7 +22,7 @@ jobs:
 
       - name: Update release branch
         run: |
-          # Crea o aggiorna il branch release con il contenuto di main
+          # Create or update the release branch to match main
           git checkout -B release
           git push origin release --force
 

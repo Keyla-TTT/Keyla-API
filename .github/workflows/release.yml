@@ -3,7 +3,7 @@ name: Semantic Release
 on:
   push:
     branches:
-      - main
+      - release
 
 permissions:
   contents: write
@@ -88,6 +88,10 @@ jobs:
     needs: [ deploy-docs ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
       - uses: sbt/setup-sbt@v1
 
       - name: Restore sbt cache
@@ -108,7 +112,7 @@ jobs:
           cache: 'sbt'
 
       - name: Build with SBT
-        run: sbt package
+        run: sbt Universal/packageBin
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -129,16 +133,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Create release branch
-        id: release_branch
-        run: |
-          VERSION=$(npx -y semantic-release --dry-run | grep "The next release version is" | awk '{print $6}')
-          BRANCH=release/v$VERSION
-          echo "Creating release branch: $BRANCH"
-          git checkout -b $BRANCH
-          git push -u origin $BRANCH
-          echo "BRANCH_NAME=$BRANCH" >> $GITHUB_ENV
-
       - name: Run Semantic Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -147,7 +141,7 @@ jobs:
       - name: Trigger release repo update
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           repository: Keyla-TTT/Keyla-RELEASE
           event-type: new-release
           client-payload: |

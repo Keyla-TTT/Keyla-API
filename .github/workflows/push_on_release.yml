@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    types: [ closed ]
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   update-release-branch:
@@ -28,5 +33,5 @@ jobs:
 
       - name: Success notification
         run: |
-          echo "Branch release aggiornato con successo"
+          echo "Branch release succesfully updated"
           echo "Commit SHA: ${{ github.sha }}"

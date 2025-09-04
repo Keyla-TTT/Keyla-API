@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - release
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -141,7 +142,7 @@ jobs:
       - name: Trigger release repo update
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           repository: Keyla-TTT/Keyla-RELEASE
           event-type: new-release
           client-payload: |

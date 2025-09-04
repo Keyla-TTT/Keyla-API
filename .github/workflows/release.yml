@@ -11,6 +11,24 @@ permissions:
   id-token: write
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sbt/setup-sbt@v1
+
+      - name: Cache sbt
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.coursier/cache
+          key: ${{ runner.os }}-sbt-${{ hashFiles('**/*.sbt') }}
+          restore-keys: ${{ runner.os }}-sbt-
 
   docs:
     runs-on: ubuntu-latest
@@ -141,7 +159,7 @@ jobs:
       - name: Trigger release repo update
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           repository: Keyla-TTT/Keyla-RELEASE
           event-type: new-release
           client-payload: |

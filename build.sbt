@@ -12,20 +12,14 @@ enablePlugins(GitPlugin)
 
 val installGitHook = taskKey[Unit]("Install git pre-commit hook")
 installGitHook := {
+  val scriptFile = baseDirectory.value / "scripts" / "pre-commit"
   val hookFile = baseDirectory.value / ".git" / "hooks" / "pre-commit"
-  IO.write(hookFile,
-    """#!/bin/sh
-      |echo "Executing scalafmt and scalafix..."
-      |files=$(git diff --cached --name-only --diff-filter=ACMR | grep ".*\\.scala$")
-      |if [ -n "$files" ]; then
-      |  sbt "scalafmtCheck; scalafixAll --check"
-      |  if [ $? -ne 0 ]; then
-      |    echo "Code style check failed. Running scalafmt and scalafix..."
-      |    sbt "scalafmtAll; scalafixAll"
-      |    git add $files
-      |  fi
-      |fi
-      |""".stripMargin)
+  
+  if (!scriptFile.exists()) {
+    throw new RuntimeException(s"Pre-commit script not found at ${scriptFile.getAbsolutePath}")
+  }
+  
+  IO.copyFile(scriptFile, hookFile)
   hookFile.setExecutable(true)
   println("Git pre-commit hook installed successfully")
 }
@@ -35,6 +29,13 @@ inThisBuild(List(
      semanticdbEnabled := true,
      semanticdbVersion := scalafixSemanticdb.revision
 ))
+
+lazy val startupTransition: State => State = "conventionalCommits" :: _
+
+ThisBuild / conventionalCommits / types := Seq("build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style", "test")
+ThisBuild / conventionalCommits / scopes := Seq()
+ThisBuild / conventionalCommits / successMessage := Some("\\e[32mCommit message meets Conventional Commit standards...\\e[0m")
+ThisBuild / conventionalCommits / failureMessage := Some("\\e[31mThe commit message does not meet the Conventional Commit standard\\e[0m")
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 val tapirVersion = "1.11.35"
@@ -45,6 +46,7 @@ val jsoniterVersion = "2.6.4"
 lazy val root = (project in file("."))
   .settings(
     name := "API-Scala",
+    Global / onLoad ~= (_ andThen ("conventionalCommits" :: _)),
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.19" % Test,
       "org.testcontainers" % "mongodb" % "1.21.2" % Test,

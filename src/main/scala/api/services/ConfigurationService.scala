@@ -517,7 +517,7 @@ class FileConfigurationService(
             config.server.port.toString,
             "Server port number (requires restart)",
             "integer",
-            "8080"
+            "9999"
           )
         )
       case ConfigKey("dictionary", "basePath") =>

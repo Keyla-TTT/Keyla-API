@@ -2,7 +2,6 @@ package api.services
 
 import analytics.calculator.AnalyticsCalculator
 import analytics.model.TestStatistics
-import api.models.AppError.*
 import api.models.AppResult
 import api.models.analytics.*
 import cats.effect.IO

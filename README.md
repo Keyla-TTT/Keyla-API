@@ -42,30 +42,22 @@ The easiest way to get started is to download a pre-built release:
 #### Option 1: Download from GitHub Releases (Recommended)
 
 1. **Download the latest release**
-   - Go to the [Releases page](https://github.com/your-username/Keyla-API/releases)
+   - Go to the [Releases page](https://github.com/Keyla-TTT/Keyla-API/releases)
    - Download the `keyla-api-<version>.zip` file
    - Extract the zip file to your desired location
 
 2. **Run the application**
-   ```bash
-   cd keyla-api-<version>
-   ./bin/keyla-api
-   ```
+   You will find a script to run the application inside the extracted folder
 
 #### Option 2: Build from Source
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Keyla-TTT/Keyla-API.git
    cd Keyla-API
    ```
-
-2. **Start MongoDB (optional)**
-   ```bash
-   docker-compose up -d mongodb
-   ```
-
-3. **Run the application**
+   
+2. **Run the application**
    ```bash
    sbt run
    ```
@@ -74,10 +66,9 @@ The API will be available at `http://localhost:9999` with Swagger documentation 
 
 ### Configuration
 
-The application uses a JSON configuration file that is automatically created on first run. The default configuration is stored in:
+The application uses a JSON configuration file that is automatically created on first run.
+Check the output logs for the location of the generated configuration file.
 
-- **Linux/macOS**: `~/.config/keyla-api/config.json`
-- **Windows**: `%APPDATA%/keyla-api/config.json`
 
 #### Dictionary Configuration
 

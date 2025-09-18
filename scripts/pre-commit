@@ -1,0 +1,11 @@
+#!/bin/sh
+echo "Executing scalafmt and scalafix..."
+files=$(git diff --cached --name-only --diff-filter=ACMR | grep ".*\\.scala$")
+if [ -n "$files" ]; then
+  sbt "scalafmtCheck; scalafixAll --check"
+  if [ $? -ne 0 ]; then
+    echo "Code style check failed. Running scalafmt and scalafix..."
+    sbt "scalafmtAll; scalafixAll"
+    git add $files
+  fi
+fi

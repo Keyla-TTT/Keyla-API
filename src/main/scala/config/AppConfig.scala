@@ -270,7 +270,7 @@ object ConfigUtils:
       ),
       server = ServerConfig(
         host = "localhost",
-        port = 8080,
+        port = 9999,
         threadPool = ThreadPoolConfig(
           coreSize = Runtime.getRuntime.availableProcessors(),
           maxSize = Runtime.getRuntime.availableProcessors() * 2,
@@ -280,7 +280,7 @@ object ConfigUtils:
         )
       ),
       dictionary = DictionaryConfig(
-        basePath = "src/main/resources/dictionaries",
+        basePath = s"${System.getProperty("user.home")}/keyla/dictionaries",
         autoCreateDirectories = true
       ),
       version = "1.0.0"

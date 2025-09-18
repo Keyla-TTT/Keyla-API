@@ -9,6 +9,11 @@ scalacOptions ++= Seq(
 enablePlugins(ScalafixPlugin)
 enablePlugins(ScalafmtPlugin)
 enablePlugins(GitPlugin)
+enablePlugins(JavaAppPackaging)
+maintainer := "Keyla-TTT <>"
+packageName := "api-scala"
+executableScriptName := "Keyla-api"
+Compile / mainClass := Some("Launcher")
 
 val installGitHook = taskKey[Unit]("Install git pre-commit hook")
 installGitHook := {

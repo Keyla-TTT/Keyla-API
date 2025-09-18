@@ -3,32 +3,15 @@ name: Semantic Release
 on:
   push:
     branches:
-      - main
+      - release
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      cache-hit: ${{ steps.cache.outputs.cache-hit }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: sbt/setup-sbt@v1
-
-      - name: Cache sbt
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.sbt
-            ~/.ivy2/cache
-            ~/.coursier/cache
-          key: ${{ runner.os }}-sbt-${{ hashFiles('**/*.sbt') }}
-          restore-keys: ${{ runner.os }}-sbt-
 
   docs:
     runs-on: ubuntu-latest
@@ -106,6 +89,10 @@ jobs:
     needs: [ deploy-docs ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
       - uses: sbt/setup-sbt@v1
 
       - name: Restore sbt cache
@@ -126,7 +113,7 @@ jobs:
           cache: 'sbt'
 
       - name: Build with SBT
-        run: sbt package
+        run: sbt Universal/packageBin
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -136,7 +123,30 @@ jobs:
       - name: Install Semantic Release
         run: npm install semantic-release @semantic-release/git @semantic-release/github @semantic-release/commit-analyzer @semantic-release/release-notes-generator
 
+      - name: Create release assets folder
+        run: mkdir -p release-assets
+
+      - name: Copy Universal package to release assets
+        run: cp target/universal/*.zip release-assets/
+
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Run Semantic Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
+
+      - name: Trigger release repo update
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          repository: Keyla-TTT/Keyla-RELEASE
+          event-type: new-release
+          client-payload: |
+            {
+              "repository_name": "${{ github.event.repository.name }}",
+              "release_tag": "${{ github.event.release.tag_name }}"
+            }

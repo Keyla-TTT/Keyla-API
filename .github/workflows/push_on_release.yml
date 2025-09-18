@@ -1,0 +1,37 @@
+name: Auto Push to Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [ closed ]
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  update-release-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update release branch
+        run: |
+          # Create or update the release branch to match main
+          git checkout -B release
+          git push origin release --force
+
+      - name: Success notification
+        run: |
+          echo "Branch release succesfully updated"
+          echo "Commit SHA: ${{ github.sha }}"

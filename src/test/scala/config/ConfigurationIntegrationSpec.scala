@@ -349,7 +349,7 @@ class ConfigurationIntegrationSpec
                     s"Failed to parse response: $error"
                   )
               _ = config.database.mongoUri shouldBe "mongodb://localhost:27017"
-              _ = config.server.port shouldBe 8080
+              _ = config.server.port shouldBe 9999
             yield ()
           }
         }

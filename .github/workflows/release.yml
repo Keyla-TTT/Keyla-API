@@ -88,10 +88,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ deploy-docs ]
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+
+      - name: fetch all tags
+        run: git fetch --tags
 
       - uses: sbt/setup-sbt@v1
 

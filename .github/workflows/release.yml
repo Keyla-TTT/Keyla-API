@@ -1,7 +1,10 @@
 name: Semantic Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [ "Auto Push to Release" ]
+    types:
+      - completed
     branches:
       - release
   workflow_dispatch:
@@ -96,6 +99,9 @@ jobs:
 
       - name: fetch all tags
         run: git fetch --tags
+
+      - name: list all tags
+        run: git tag -l
 
       - uses: sbt/setup-sbt@v1
 

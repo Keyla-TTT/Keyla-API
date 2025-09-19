@@ -276,3 +276,7 @@ For questions, issues, or contributions, please:
 - Open an issue on GitHub
 - Check the API documentation at `/docs`
 - Review the test cases for usage examples
+
+## Acknowledgements
+
+- Inspired by various typing test applications and APIs

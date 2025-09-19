@@ -101,6 +101,9 @@ jobs:
       - name: list all tags
         run: git tag -l
 
+      - name: push tags to remote
+        run: git push origin --tags
+
       - uses: sbt/setup-sbt@v1
 
       - name: Restore sbt cache

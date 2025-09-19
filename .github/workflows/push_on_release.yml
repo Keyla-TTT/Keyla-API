@@ -1,13 +1,11 @@
 name: Auto Push to Release
 
 on:
-  push:
+  pull_request:
+    types: [ closed ]
     branches:
       - main
-  #  pull_request:
-  #    types: [ closed ]
-  #    branches:
-  #      - main
+
   workflow_dispatch:
 
 jobs:
@@ -30,6 +28,8 @@ jobs:
           # Create or update the release branch to match main
           git checkout -B release
           git push origin release --force
+        env:
+          GIT_AUTH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Success notification
         run: |

@@ -145,8 +145,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fetch all history and tags
-        run: git fetch --prune --unshallow --tags
+      - name: Unshallow if needed
+        run: |
+          if git rev-parse --is-shallow-repository | grep true; then
+            git fetch --unshallow
+          fi
 
       - name: Run Semantic Release
         env:

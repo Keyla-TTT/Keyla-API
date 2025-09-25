@@ -266,7 +266,7 @@ object ConfigUtils:
       database = DatabaseConfig(
         mongoUri = "mongodb://localhost:27017",
         databaseName = "keyla_db",
-        useMongoDb = false
+        useMongoDb = true
       ),
       server = ServerConfig(
         host = "localhost",
